@@ -7,9 +7,11 @@ $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
     app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
-    app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
+    app_nav_item('aluno_matricula.php', "Matr\u{00ED}cula", 'enrollment-student'),
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
+
+$navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
 $profile = db_fetch_one($pdo, 'SELECT * FROM student_profiles WHERE user_id = ? LIMIT 1', [current_user()['id']]);
 $activeCourses = db_fetch_all($pdo, 'SELECT id, name FROM courses WHERE is_active = 1 ORDER BY name');
@@ -19,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('aluno_ficha.php');
 
     if (!$editable) {
-        set_flash('error', 'A ficha atual não pode ser editada neste estado.');
+        set_flash('error', "A ficha atual n\u{00E3}o pode ser editada neste estado.");
         redirect_to('aluno_ficha.php');
     }
 
@@ -33,19 +35,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $notes = trim((string) ($_POST['notes'] ?? ''));
 
     if ($courseId <= 0) {
-        set_flash('error', 'Seleciona um curso válido para a ficha.');
+        set_flash('error', "Seleciona um curso v\u{00E1}lido para a ficha.");
         redirect_to('aluno_ficha.php');
     }
 
     $selectedCourse = db_fetch_one($pdo, 'SELECT id FROM courses WHERE id = ? AND is_active = 1 LIMIT 1', [$courseId]);
 
     if (!$selectedCourse) {
-        set_flash('error', 'O curso selecionado já não está disponível para a ficha.');
+        set_flash('error', "O curso selecionado j\u{00E1} n\u{00E3}o est\u{00E1} dispon\u{00ED}vel para a ficha.");
         redirect_to('aluno_ficha.php');
     }
 
     if ($contactEmail !== '' && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
-        set_flash('error', 'O e-mail de contacto não é válido.');
+        set_flash('error', "O e-mail de contacto n\u{00E3}o \u{00E9} v\u{00E1}lido.");
         redirect_to('aluno_ficha.php');
     }
 
@@ -54,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $validBirthDate = $birthDateObject && $birthDateObject->format('Y-m-d') === $birthDate;
 
         if (!$validBirthDate || $birthDate > date('Y-m-d')) {
-            set_flash('error', 'Indica uma data de nascimento válida.');
+            set_flash('error', "Indica uma data de nascimento v\u{00E1}lida.");
             redirect_to('aluno_ficha.php');
         }
     }
@@ -83,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 delete_uploaded_file($upload['path']);
             }
 
-            set_flash('error', 'Só podes submeter a ficha 5 vezes em 24 horas. Tenta novamente mais tarde.');
+            set_flash('error', "S\u{00F3} podes submeter a ficha 5 vezes em 24 horas. Tenta novamente mais tarde.");
             redirect_to('aluno_ficha.php');
         }
 
@@ -166,8 +168,8 @@ $editable = !$profile || in_array($profile['status'], ['rascunho', 'rejeitada'],
 
 render_app_page_start(
     'Gc',
-    'Bem-vindo à Ficha do Aluno',
-    'Nesta área podes preencher e atualizar os teus dados pessoais, adicionar a tua fotografia e submeter a ficha para validação pedagógica. Este processo é necessário para formalizar a tua integração como aluno no sistema escolar, garantindo que a tua informação está completa, correta e pronta para análise.',
+    "Bem-vindo \u{00E0} Ficha do Aluno",
+    "Nesta \u{00E1}rea podes preencher e atualizar os teus dados pessoais, adicionar a tua fotografia e submeter a ficha para valida\u{00E7}\u{00E3}o pedag\u{00F3}gica. Este processo \u{00E9} necess\u{00E1}rio para formalizar a tua integra\u{00E7}\u{00E3}o como aluno no sistema escolar, garantindo que a tua informa\u{00E7}\u{00E3}o est\u{00E1} completa, correta e pronta para an\u{00E1}lise.",
     $navItems,
     'aluno_ficha.php'
 );
@@ -176,8 +178,9 @@ render_app_page_start(
     <div class="app-panel__header">
         <div>
             <h2>Estado atual</h2>
-            <p><?= $profile ? 'A tua ficha já existe e podes acompanhar o estado abaixo.' : 'Ainda não tens ficha criada. Começa por guardar um rascunho.' ?></p>
-            <p>* = Campos obrigatórios</p>
+            <p><strong>S&oacute; poder&aacute;s aceder &agrave; matr&iacute;cula e &agrave;s notas depois de preencher a ficha e esta ser aceite.</strong></p>
+            <p><?= $profile ? 'A tua ficha j&aacute; existe e podes acompanhar o estado abaixo.' : 'Ainda n&atilde;o tens ficha criada. Come&ccedil;a por guardar um rascunho.' ?></p>
+            <p>* = Campos obrigat&oacute;rios</p>
         </div>
     </div>
 
@@ -190,17 +193,17 @@ render_app_page_start(
                 <p><strong>Data de nascimento:</strong> <span class="app-text-flow"><?= h((string) ($profile['birth_date'] ?? '-')) ?></span></p>
                 <p><strong>Morada:</strong> <span class="app-text-flow--scroll"><?= h($profile['address'] ?? '-') ?></span></p>
                 <p><strong>Submetida:</strong> <span class="app-text-flow"><?= h((string) ($profile['submitted_at'] ?? '-')) ?></span></p>
-                <p><strong>Observações do gestor:</strong> <span class="app-text-flow--scroll"><?= h($profile['review_notes'] ?? '-') ?></span></p>
+                <p><strong>Observa&ccedil;&otilde;es do gestor:</strong> <span class="app-text-flow--scroll"><?= h($profile['review_notes'] ?? '-') ?></span></p>
             </div>
         </article>
         <article class="app-card review-profile-card review-profile-card--photo student-profile-summary-card">
             <h2>Fotografia do aluno</h2>
-            <p class="helper-text">Aqui está a fotografia submetida por ti.</p>
+            <p class="helper-text">Aqui est&aacute; a fotografia submetida por ti.</p>
             <div class="review-profile-photo-wrap">
                 <?php if (!empty($profile['photo_path'])): ?>
                     <img src="<?= h($profile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview photo-preview--modal student-profile-photo-preview">
                 <?php else: ?>
-                    <p class="empty-text">Ainda não existe fotografia submetida.</p>
+                    <p class="empty-text">Ainda n&atilde;o existe fotografia submetida.</p>
                 <?php endif; ?>
             </div>
         </article>
@@ -211,7 +214,7 @@ render_app_page_start(
     <div class="app-panel__header">
         <div>
             <h2><?= $editable ? 'Editar ficha' : 'Ficha bloqueada' ?></h2>
-            <p><?= $editable ? 'Podes guardar rascunho ou submeter a ficha para validação.' : 'A ficha só volta a ser editável se estiver em rascunho ou rejeitada.' ?></p>
+            <p><?= $editable ? 'Podes guardar rascunho ou submeter a ficha para valida&ccedil;&atilde;o.' : 'A ficha s&oacute; volta a ser edit&aacute;vel se estiver em rascunho ou rejeitada.' ?></p>
         </div>
     </div>
 
@@ -247,11 +250,11 @@ render_app_page_start(
             <input id="address" type="text" name="address" value="<?= h($profile['address'] ?? '') ?>" <?= $editable ? '' : 'disabled' ?>>
         </div>
         <div class="app-field student-profile-photo-field">
-            <label for="photo">Fotografia (JPG/PNG até 2MB) *</label>
+            <label for="photo">Fotografia (JPG/PNG at&eacute; 2MB) *</label>
             <input id="photo" type="file" name="photo" accept=".jpg,.jpeg,.png" <?= $editable ? '' : 'disabled' ?>>
         </div>
         <div class="app-field student-profile-notes-field">
-            <label for="notes">Observações</label>
+            <label for="notes">Observa&ccedil;&otilde;es</label>
             <textarea id="notes" name="notes" <?= $editable ? '' : 'disabled' ?>><?= h($profile['notes'] ?? '') ?></textarea>
         </div>
 

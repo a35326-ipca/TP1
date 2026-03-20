@@ -2,14 +2,17 @@
 require_once 'app_ui.php';
 
 require_aluno();
+require_student_access_unlocked($pdo);
 
 $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
     app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
-    app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
+    app_nav_item('aluno_matricula.php', "Matr\u{00ED}cula", 'enrollment-student'),
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
+
+$navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('aluno_matricula.php');
@@ -25,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $course = db_fetch_one($pdo, 'SELECT id FROM courses WHERE id = ? AND is_active = 1 LIMIT 1', [$courseId]);
 
     if (!$course) {
-        set_flash('error', 'O curso selecionado não está disponível.');
+        set_flash('error', "O curso selecionado n\u{00E3}o est\u{00E1} dispon\u{00ED}vel.");
         redirect_to('aluno_matricula.php');
     }
 
@@ -36,12 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     );
 
     if ($pending) {
-        set_flash('error', 'Já tens um pedido pendente para esse curso.');
+        set_flash('error', "J\u{00E1} tens um pedido pendente para esse curso.");
         redirect_to('aluno_matricula.php');
     }
 
     if (!has_submission_limit_available($pdo, (int) current_user()['id'], 'enrollment_request')) {
-        set_flash('error', 'Só podes criar 5 pedidos de matrícula em 24 horas. Tenta novamente mais tarde.');
+        set_flash('error', "S\u{00F3} podes criar 5 pedidos de matr\u{00ED}cula em 24 horas. Tenta novamente mais tarde.");
         redirect_to('aluno_matricula.php');
     }
 
@@ -51,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         [current_user()['id'], $courseId, $studentNotes !== '' ? $studentNotes : null, 'pendente']
     );
 
-    set_flash('success', 'Pedido de matrícula criado com sucesso.');
+    set_flash('success', "Pedido de matr\u{00ED}cula criado com sucesso.");
     register_submission_event($pdo, (int) current_user()['id'], 'enrollment_request');
     redirect_to('aluno_matricula.php');
 }
@@ -71,8 +74,8 @@ $requests = db_fetch_all(
 
 render_app_page_start(
     'Gc',
-    'Bem-vindo ao Pedido de Matrícula',
-    'Nesta área podes criar novos pedidos de matrícula e acompanhar o estado de cada submissão ao longo do processo. Permite também consultar as decisões registadas pelo funcionário, de forma simples, clara e organizada.',
+    "Bem-vindo ao Pedido de Matr\u{00ED}cula",
+    "Nesta \u{00E1}rea podes criar novos pedidos de matr\u{00ED}cula e acompanhar o estado de cada submiss\u{00E3}o ao longo do processo. Permite tamb\u{00E9}m consultar as decis\u{00F5}es registadas pelo funcion\u{00E1}rio, de forma simples, clara e organizada.",
     $navItems,
     'aluno_matricula.php'
 );
@@ -81,7 +84,7 @@ render_app_page_start(
     <div class="app-panel__header">
         <div>
             <h2>Novo pedido</h2>
-            <p>Nesta secção podes selecionar um curso disponível e criar um novo pedido de matrícula. Tens também a possibilidade de adicionar observações, caso seja necessário, para fornecer informações adicionais ao funcionário durante a análise do pedido.</p>
+            <p>Nesta sec&ccedil;&atilde;o podes selecionar um curso dispon&iacute;vel e criar um novo pedido de matr&iacute;cula. Tens tamb&eacute;m a possibilidade de adicionar observa&ccedil;&otilde;es, caso seja necess&aacute;rio, para fornecer informa&ccedil;&otilde;es adicionais ao funcion&aacute;rio durante a an&aacute;lise do pedido.</p>
         </div>
     </div>
 
@@ -97,7 +100,7 @@ render_app_page_start(
             </select>
         </div>
         <div class="app-field student-enrollment-form__field-full">
-            <label for="student_notes">Observações do aluno</label>
+            <label for="student_notes">Observa&ccedil;&otilde;es do aluno</label>
             <textarea id="student_notes" name="student_notes"></textarea>
         </div>
 
@@ -110,8 +113,8 @@ render_app_page_start(
 <section class="app-panel">
     <div class="app-panel__header">
         <div>
-            <h2>Histórico de pedidos</h2>
-            <p>Nesta secção podes consultar o histórico de todos os pedidos de matrícula realizados, verificar o estado atual de cada um e acompanhar as decisões mais recentes associadas a cada pedido.</p>
+            <h2>Hist&oacute;rico de pedidos</h2>
+            <p>Nesta sec&ccedil;&atilde;o podes consultar o hist&oacute;rico de todos os pedidos de matr&iacute;cula realizados, verificar o estado atual de cada um e acompanhar as decis&otilde;es mais recentes associadas a cada pedido.</p>
         </div>
     </div>
 
@@ -128,7 +131,7 @@ render_app_page_start(
                 <tr>
                     <th>Curso</th>
                     <th>Notas do aluno</th>
-                    <th>Decisão</th>
+                    <th>Decis&atilde;o</th>
                     <th class="app-table__student-request-created-col">Criado em</th>
                     <th class="app-table__student-request-status-col">Estado</th>
                 </tr>
@@ -136,7 +139,7 @@ render_app_page_start(
             <tbody>
                 <?php if ($requests === []): ?>
                     <tr>
-                        <td colspan="5"><p class="empty-text">Ainda não tens pedidos de matrícula.</p></td>
+                        <td colspan="5"><p class="empty-text">Ainda n&atilde;o tens pedidos de matr&iacute;cula.</p></td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($requests as $request): ?>

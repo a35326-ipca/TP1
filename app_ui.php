@@ -10,6 +10,22 @@ function app_nav_item(string $href, string $label, string $icon): array
     ];
 }
 
+function build_student_nav_items(PDO $pdo, ?int $userId = null): array
+{
+    $items = [
+        app_nav_item('hub_aluno.php', 'Hub', 'home'),
+        app_nav_item('perfil.php', 'Perfil', 'account'),
+        app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
+    ];
+
+    if (student_access_unlocked($pdo, $userId)) {
+        $items[] = app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student');
+        $items[] = app_nav_item('aluno_notas.php', 'Notas', 'grades');
+    }
+
+    return $items;
+}
+
 function app_icon(string $icon): string
 {
     return match ($icon) {

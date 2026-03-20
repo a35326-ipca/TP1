@@ -2,6 +2,7 @@
 require_once 'app_ui.php';
 
 require_aluno();
+require_student_access_unlocked($pdo);
 
 $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
@@ -10,6 +11,8 @@ $navItems = [
     app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
+
+$navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
 $grades = db_fetch_all(
     $pdo,

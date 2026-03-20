@@ -22,18 +22,11 @@ function current_nav_items(): array
         return [
             app_nav_item('hub_funcionario.php', 'Hub', 'home'),
             app_nav_item('perfil.php', 'Perfil', 'account'),
-            app_nav_item('funcionario_pedidos.php', 'Matrículas', 'enrollment'),
+            app_nav_item('funcionario_pedidos.php', "Matr\u{00ED}culas", 'enrollment'),
             app_nav_item('funcionario_pautas.php', 'Pautas', 'grades'),
         ];
     }
-
-    return [
-        app_nav_item('hub_aluno.php', 'Hub', 'home'),
-        app_nav_item('perfil.php', 'Perfil', 'account'),
-        app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
-        app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
-        app_nav_item('aluno_notas.php', 'Notas', 'grades'),
-    ];
+    return build_student_nav_items($GLOBALS['pdo'], (int) current_user()['id']);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -53,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passwordBlank = $password === '' && $confirmPassword === '';
 
     if ($sameName && $sameEmail && $passwordBlank) {
-        set_flash('error', 'Não existem alterações para guardar.');
+        set_flash('error', "N\u{00E3}o existem altera\u{00E7}\u{00F5}es para guardar.");
         redirect_to('perfil.php');
     }
 
@@ -68,12 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        set_flash('error', 'O e-mail introduzido não é válido.');
+        set_flash('error', "O e-mail introduzido n\u{00E3}o \u{00E9} v\u{00E1}lido.");
         redirect_to('perfil.php');
     }
 
     if (db_fetch_one($pdo, 'SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1', [$email, $currentUser['id']])) {
-        set_flash('error', 'Já existe outra conta com esse e-mail.');
+        set_flash('error', "J\u{00E1} existe outra conta com esse e-mail.");
         redirect_to('perfil.php');
     }
 
@@ -90,12 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/\d/', $password)) {
-            set_flash('error', 'Usa uma palavra-passe com maiúsculas, minúsculas e números.');
+            set_flash('error', "Usa uma palavra-passe com mai\u{00FA}sculas, min\u{00FA}sculas e n\u{00FA}meros.");
             redirect_to('perfil.php');
         }
 
         if ($password !== $confirmPassword) {
-            set_flash('error', 'As palavras-passe não coincidem.');
+            set_flash('error', "As palavras-passe n\u{00E3}o coincidem.");
             redirect_to('perfil.php');
         }
 
@@ -125,15 +118,15 @@ $user = current_user();
 $navItems = current_nav_items();
 $pageTitle = current_user_role() === 'gestor'
     ? 'Perfil do Gestor'
-    : (current_user_role() === 'funcionario' ? 'Perfil do Funcionário' : 'Perfil do Aluno');
+    : (current_user_role() === 'funcionario' ? "Perfil do Funcion\u{00E1}rio" : 'Perfil do Aluno');
 $roleLabel = current_user_role() === 'gestor'
     ? 'Gestor'
-    : (current_user_role() === 'funcionario' ? 'Funcionário' : 'Aluno');
+    : (current_user_role() === 'funcionario' ? "Funcion\u{00E1}rio" : 'Aluno');
 
 render_app_page_start(
     'Perfil',
     'Bem-vindo ao Perfil',
-    'Área destinada à atualização dos dados da conta de utilizador. Nesta secção é possível alterar informações de acesso e manter os dados pessoais atualizados, garantindo que a conta permanece correta, segura e devidamente configurada para a utilização da plataforma.',
+    "\u{00C1}rea destinada \u{00E0} atualiza\u{00E7}\u{00E3}o dos dados da conta de utilizador. Nesta sec\u{00E7}\u{00E3}o \u{00E9} poss\u{00ED}vel alterar informa\u{00E7}\u{00F5}es de acesso e manter os dados pessoais atualizados, garantindo que a conta permanece correta, segura e devidamente configurada para a utiliza\u{00E7}\u{00E3}o da plataforma.",
     $navItems,
     'perfil.php'
 );
@@ -154,7 +147,7 @@ render_metric_cards([
 
 <section class="app-panel">
     <h2>Atualizar dados</h2>
-    <p>Nesta secção é possível atualizar informações pessoais da conta, como o nome e o endereço de e-mail, bem como definir uma nova palavra-passe caso seja necessário, garantindo que os dados de acesso permanecem atualizados e seguros.</p>
+    <p>Nesta sec&ccedil;&atilde;o &eacute; poss&iacute;vel atualizar informa&ccedil;&otilde;es pessoais da conta, como o nome e o endere&ccedil;o de e-mail, bem como definir uma nova palavra-passe caso seja necess&aacute;rio, garantindo que os dados de acesso permanecem atualizados e seguros.</p>
 
     <form method="post" class="app-form app-form--grid profile-form" novalidate>
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -194,7 +187,7 @@ render_metric_cards([
         </div>
 
         <div class="app-form__actions profile-form__actions">
-            <button type="submit" class="app-button app-button--primary">Guardar alterações</button>
+            <button type="submit" class="app-button app-button--primary">Guardar altera&ccedil;&otilde;es</button>
         </div>
     </form>
 </section>

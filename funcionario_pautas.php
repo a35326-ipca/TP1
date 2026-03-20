@@ -62,6 +62,7 @@ $units = db_fetch_all($pdo, 'SELECT id, name FROM units ORDER BY name');
 $filterUnitId = (int) ($_GET['filter_unit_id'] ?? 0);
 $filterSeason = trim((string) ($_GET['filter_season'] ?? ''));
 $filterAcademicYear = trim((string) ($_GET['filter_academic_year'] ?? ''));
+$hasActiveFilters = $filterUnitId > 0 || $filterSeason !== '' || $filterAcademicYear !== '';
 $sheetWhere = [];
 $sheetParams = [];
 
@@ -200,11 +201,11 @@ render_app_page_start(
                 </tr>
             </thead>
             <tbody>
-                <?php if ($sheets === []): ?>
+                <?php if ($sheets === [] && $hasActiveFilters): ?>
                     <tr>
                         <td colspan="6"><p class="empty-text">Não existem pautas para os filtros selecionados.</p></td>
                     </tr>
-                <?php else: ?>
+                <?php elseif ($sheets !== []): ?>
                     <?php foreach ($sheets as $sheet): ?>
                         <tr>
                             <td class="app-table__course-name-col"><?= h($sheet['unit_name']) ?></td>

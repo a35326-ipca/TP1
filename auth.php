@@ -626,6 +626,38 @@ function require_aluno(): void
     require_roles('aluno');
 }
 
+function student_profile_status(PDO $pdo, ?int $userId = null): ?string
+{
+    $resolvedUserId = $userId ?? (int) (current_user()['id'] ?? 0);
+
+    if ($resolvedUserId <= 0) {
+        return null;
+    }
+
+    $status = db_fetch_value(
+        $pdo,
+        'SELECT status
+         FROM student_profiles
+         WHERE user_id = ? LIMIT 1',
+        [$resolvedUserId]
+    );
+
+    return is_string($status) ? $status : null;
+}
+
+function student_access_unlocked(PDO $pdo, ?int $userId = null): bool
+{
+    return student_profile_status($pdo, $userId) === 'aprovada';
+}
+
+function require_student_access_unlocked(PDO $pdo): void
+{
+    if (!student_access_unlocked($pdo)) {
+        set_flash('error', 'Só podes aceder a esta área depois de submeter a ficha e ela ser aprovada.');
+        redirect_to('aluno_ficha.php');
+    }
+}
+
 function normalize_email(string $email): string
 {
     return mb_strtolower(trim($email));
