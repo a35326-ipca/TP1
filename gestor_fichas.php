@@ -13,6 +13,105 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+function render_profile_review_modal(array $reviewingProfile, array $decisionHistory, int $decisionHistoryCount, string $selectedReviewStatus, string $reviewNotesValue): void
+{
+    ?>
+    <div class="app-modal is-open" id="review-profile-modal">
+        <a href="gestor_fichas.php" class="app-modal__backdrop" aria-label="Fechar revisão da ficha" data-modal-close></a>
+        <section class="app-modal__dialog app-modal__dialog--review app-panel profile-panel" role="dialog" aria-modal="true" aria-labelledby="review-profile-title">
+        <div class="app-modal__header">
+            <div>
+                <h2 id="review-profile-title"><?= in_array(($reviewingProfile['status'] ?? ''), ['rejeitada', 'aprovada'], true) ? 'Editar ficha' : 'Rever ficha' ?></h2>
+                <p><?= h($reviewingProfile['full_name']) ?> · <?= h($reviewingProfile['course_name']) ?></p>
+            </div>
+            <a href="gestor_fichas.php" class="app-modal__close" aria-label="Fechar modal" data-modal-close>
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            </a>
+        </div>
+
+        <div class="review-profile-grid">
+            <article class="app-card review-profile-card review-profile-card--details">
+                <h2>Dados submetidos</h2>
+                <div class="review-profile-details">
+                <p><strong>Nome:</strong> <?= h($reviewingProfile['full_name']) ?></p>
+                <p><strong>Data de nascimento:</strong> <?= h((string) ($reviewingProfile['birth_date'] ?? '-')) ?></p>
+                <p><strong>E-mail da conta:</strong> <?= h($reviewingProfile['user_email']) ?></p>
+                <p><strong>E-mail de contacto:</strong> <?= h($reviewingProfile['contact_email']) ?></p>
+                <p><strong>Telefone:</strong> <?= h($reviewingProfile['phone']) ?></p>
+                <p><strong>Morada:</strong> <?= h($reviewingProfile['address'] ?? '-') ?></p>
+                <p><strong>Curso:</strong> <?= h($reviewingProfile['course_name']) ?></p>
+                <p><strong>Estado atual:</strong> <?= status_badge($reviewingProfile['status']) ?></p>
+                <p class="review-field--stacked"><strong>Observações do aluno:</strong> <span class="app-text-flow--scroll"><?= h($reviewingProfile['notes'] ?? '-') ?></span></p>
+                </div>
+            </article>
+
+            <article class="app-card review-profile-card review-profile-card--photo">
+                <h2>Fotografia do aluno</h2>
+                <p class="helper-text">Aqui está a fotografia submetida pelo aluno.</p>
+                <div class="review-profile-photo-wrap">
+                    <?php if (!empty($reviewingProfile['photo_path'])): ?>
+                        <img src="<?= h($reviewingProfile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview photo-preview--modal" loading="lazy" decoding="async" fetchpriority="low">
+                    <?php else: ?>
+                        <p class="empty-text">Sem fotografia submetida.</p>
+                    <?php endif; ?>
+                </div>
+            </article>
+
+            <article class="app-card review-profile-card review-profile-card--decision">
+                <h2>Decisão pedagógica</h2>
+                <form method="post" class="app-form review-profile-form" novalidate>
+                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="action" value="review_profile">
+                    <input type="hidden" name="id" value="<?= (int) $reviewingProfile['id'] ?>">
+
+                    <div class="app-field">
+                        <label for="status">Decisão</label>
+                        <select id="status" name="status">
+                            <option value="aprovada" <?= $selectedReviewStatus === 'aprovada' ? 'selected' : '' ?>>Aprovar</option>
+                            <option value="rejeitada" <?= $selectedReviewStatus === 'rejeitada' ? 'selected' : '' ?>>Rejeitar</option>
+                        </select>
+                    </div>
+                    <div class="app-field review-profile-notes-field">
+                        <label for="review_notes">Observações do gestor</label>
+                        <textarea id="review_notes" name="review_notes" class="review-profile-notes"><?= h((string) $reviewNotesValue) ?></textarea>
+                    </div>
+                    <div class="app-form__actions review-profile-actions">
+                        <button type="submit" class="app-button app-button--primary">Guardar decisão</button>
+                    </div>
+                </form>
+            </article>
+
+            <article class="app-card review-profile-card review-profile-card--history">
+                <h2>Histórico de decisões</h2>
+                <?php if ($decisionHistory === []): ?>
+                    <p class="empty-text">Ainda não existem decisões anteriores registadas para esta ficha.</p>
+                <?php else: ?>
+                    <?php if ($decisionHistoryCount > count($decisionHistory)): ?>
+                        <p class="helper-text">A mostrar as 5 decisões mais recentes.</p>
+                    <?php endif; ?>
+                    <div class="decision-history">
+                        <?php foreach ($decisionHistory as $historyItem): ?>
+                            <article class="decision-history__item">
+                                <div class="decision-history__meta">
+                                    <strong class="app-text-flow"><?= h($historyItem['reviewed_by_name'] ?? 'Sistema') ?></strong>
+                                    <span class="app-text-flow"><?= h(date('Y-m-d H:i', strtotime((string) $historyItem['created_at']))) ?></span>
+                                </div>
+                                <p><strong>Estado:</strong> <span class="app-text-flow"><?= h($historyItem['previous_status']) ?> → <?= h($historyItem['new_status']) ?></span></p>
+                                <p class="review-field--stacked"><strong>Observações anteriores:</strong> <span class="app-text-flow--scroll"><?= h($historyItem['previous_review_notes'] ?: '-') ?></span></p>
+                                <p class="review-field--stacked"><strong>Novas observações:</strong> <span class="app-text-flow--scroll"><?= h($historyItem['new_review_notes'] ?: '-') ?></span></p>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </article>
+        </div>
+        </section>
+    </div>
+    <?php
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_fichas.php');
 
@@ -151,7 +250,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$reviewingProfile = isset($_GET['review'])
+$modalRequestId = isset($_GET['modal'], $_GET['id']) && $_GET['modal'] === 'review'
+    ? (int) $_GET['id']
+    : null;
+
+$reviewProfileId = isset($_GET['review']) ? (int) $_GET['review'] : null;
+$activeReviewProfileId = $modalRequestId ?? $reviewProfileId;
+
+$reviewingProfile = $activeReviewProfileId
     ? db_fetch_one(
         $pdo,
         'SELECT sp.*, c.name AS course_name, u.name AS student_name, u.email AS user_email
@@ -159,7 +265,7 @@ $reviewingProfile = isset($_GET['review'])
          INNER JOIN courses c ON c.id = sp.course_id
          INNER JOIN users u ON u.id = sp.user_id
          WHERE sp.id = ? LIMIT 1',
-        [(int) $_GET['review']]
+        [$activeReviewProfileId]
     )
     : null;
 
@@ -168,6 +274,16 @@ if ($reviewingProfile && !in_array($reviewingProfile['status'] ?? '', ['submetid
     redirect_to('gestor_fichas.php');
 }
 
+$decisionHistoryCount = $reviewingProfile
+    ? (int) db_fetch_value(
+        $pdo,
+        'SELECT COUNT(*)
+         FROM student_profile_decisions
+         WHERE student_profile_id = ?',
+        [(int) $reviewingProfile['id']]
+    )
+    : 0;
+
 $decisionHistory = $reviewingProfile
     ? db_fetch_all(
         $pdo,
@@ -175,7 +291,8 @@ $decisionHistory = $reviewingProfile
          FROM student_profile_decisions spd
          LEFT JOIN users reviewer ON reviewer.id = spd.reviewed_by
          WHERE spd.student_profile_id = ?
-         ORDER BY spd.created_at DESC, spd.id DESC',
+         ORDER BY spd.created_at DESC, spd.id DESC
+         LIMIT 5',
         [(int) $reviewingProfile['id']]
     )
     : [];
@@ -210,6 +327,11 @@ $profiles = db_fetch_all(
 $oldInput = get_old_input();
 $selectedReviewStatus = $oldInput['status'] ?? (($reviewingProfile && in_array(($reviewingProfile['status'] ?? ''), ['rejeitada', 'aprovada'], true)) ? $reviewingProfile['status'] : 'aprovada');
 $reviewNotesValue = $oldInput['review_notes'] ?? ($reviewingProfile['review_notes'] ?? '');
+
+if ($modalRequestId && $reviewingProfile) {
+    render_profile_review_modal($reviewingProfile, $decisionHistory, $decisionHistoryCount, $selectedReviewStatus, $reviewNotesValue);
+    exit;
+}
 
 render_app_page_start(
     'Gc',
@@ -249,9 +371,6 @@ render_app_page_start(
                 <p><strong>Estado atual:</strong> <?= status_badge($reviewingProfile['status']) ?></p>
                 <p><strong>Observações do aluno:</strong> <?= h($reviewingProfile['notes'] ?? '-') ?></p>
                 </div>
-                <?php if (!empty($reviewingProfile['photo_path'])): ?>
-                    <img src="<?= h($reviewingProfile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview">
-                <?php endif; ?>
             </article>
 
             <article class="app-card review-profile-card review-profile-card--photo">
@@ -259,7 +378,7 @@ render_app_page_start(
                 <p class="helper-text">Aqui está a fotografia submetida pelo aluno.</p>
                 <div class="review-profile-photo-wrap">
                     <?php if (!empty($reviewingProfile['photo_path'])): ?>
-                        <img src="<?= h($reviewingProfile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview photo-preview--modal">
+                        <img src="<?= h($reviewingProfile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview photo-preview--modal" loading="lazy" decoding="async">
                     <?php else: ?>
                         <p class="empty-text">Sem fotografia submetida.</p>
                     <?php endif; ?>
@@ -295,6 +414,9 @@ render_app_page_start(
                 <?php if ($decisionHistory === []): ?>
                     <p class="empty-text">Ainda não existem decisões anteriores registadas para esta ficha.</p>
                 <?php else: ?>
+                    <?php if ($decisionHistoryCount > count($decisionHistory)): ?>
+                        <p class="helper-text">A mostrar as 5 decisões mais recentes.</p>
+                    <?php endif; ?>
                     <div class="decision-history">
                         <?php foreach ($decisionHistory as $historyItem): ?>
                             <article class="decision-history__item">
@@ -401,13 +523,13 @@ render_app_page_start(
                         <td class="app-table__profile-actions-col">
                             <div class="table-actions">
                                 <?php if (($profile['status'] ?? '') === 'submetida'): ?>
-                                    <a href="gestor_fichas.php?review=<?= (int) $profile['id'] ?>" title="Rever">
+                                    <a href="gestor_fichas.php?review=<?= (int) $profile['id'] ?>" data-modal-url="gestor_fichas.php?modal=review&amp;id=<?= (int) $profile['id'] ?>" title="Rever">
                                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
                                         </svg>
                                     </a>
                                 <?php elseif (in_array(($profile['status'] ?? ''), ['rejeitada', 'aprovada'], true)): ?>
-                                    <a href="gestor_fichas.php?review=<?= (int) $profile['id'] ?>" title="Editar">
+                                    <a href="gestor_fichas.php?review=<?= (int) $profile['id'] ?>" data-modal-url="gestor_fichas.php?modal=review&amp;id=<?= (int) $profile['id'] ?>" title="Editar">
                                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
                                         </svg>

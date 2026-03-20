@@ -1291,6 +1291,19 @@
     min-width: 0;
 }
 
+.review-field--stacked {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    row-gap: 6px;
+    align-items: start !important;
+}
+
+.review-field--stacked strong,
+.review-field--stacked .app-text-flow,
+.review-field--stacked .app-text-flow--scroll {
+    min-width: 0;
+}
+
 .review-profile-card--photo {
     text-align: center;
 }
@@ -1421,6 +1434,9 @@
     display: grid;
     gap: 14px;
     min-width: 0;
+    max-height: 34rem;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .decision-history__item {
@@ -1449,6 +1465,12 @@
 .review-profile-details .app-text-flow--scroll,
 .decision-history .app-text-flow--scroll {
     max-height: 10rem;
+}
+
+.review-profile-details {
+    max-height: 34rem;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .app-table td .app-text-flow--scroll,
