@@ -1,8 +1,12 @@
 <?php
+// Página do gestor para criação, edição, listagem e remoção de cursos.
+
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base da área de gestão.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +17,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Processa operações de criação e atualização de cursos.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_cursos.php');
 
@@ -20,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $isActive = (int) ($_POST['is_active'] ?? 1) === 1 ? 1 : 0;
 
+    // Cria um novo curso com o estado pretendido.
     if ($action === 'create_course') {
         if ($name === '') {
             set_flash('error', 'Indica o nome do curso.');
@@ -36,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_cursos.php');
     }
 
+    // Atualiza os dados de um curso existente.
     if ($action === 'update_course') {
         $id = (int) ($_POST['id'] ?? 0);
         $editRedirect = 'gestor_cursos.php?edit=' . $id;
@@ -68,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Processa a eliminação de um curso, respeitando dependências existentes.
 if (isset($_GET['delete'])) {
     verify_csrf_value($_GET['csrf_token'] ?? null, 'gestor_cursos.php');
     $id = (int) $_GET['delete'];
@@ -86,6 +94,7 @@ if (isset($_GET['delete'])) {
     redirect_to('gestor_cursos.php');
 }
 
+// Carrega o curso em edição, o candidato a eliminação e a lista completa de cursos.
 $editingCourse = isset($_GET['edit'])
     ? db_fetch_one($pdo, 'SELECT id, name, is_active FROM courses WHERE id = ? LIMIT 1', [(int) $_GET['edit']])
     : null;
@@ -94,6 +103,7 @@ $deleteCandidate = isset($_GET['confirm_delete'])
     : null;
 $courses = db_fetch_all($pdo, 'SELECT id, name, is_active, created_at, updated_at FROM courses ORDER BY is_active DESC, name');
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo à Gestão de Cursos',
@@ -103,6 +113,7 @@ render_app_page_start(
 );
 ?>
 <section class="app-panel profile-panel">
+    <!-- Formulário para criação de novos cursos. -->
     <div class="app-panel__header">
         <div>
             <h2>Criar curso</h2>
@@ -111,6 +122,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form" novalidate>
+        <!-- Token CSRF e ação de criação. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="create_course">
 
@@ -133,6 +145,7 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Tabela principal de consulta e gestão dos cursos existentes. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de cursos</h2>
@@ -187,6 +200,7 @@ render_app_page_start(
 </section>
 
 <?php if ($editingCourse): ?>
+    <!-- Modal de edição de um curso existente. -->
     <div class="app-modal is-open" id="edit-course-modal">
         <a href="gestor_cursos.php" class="app-modal__backdrop" aria-label="Fechar edição do curso"></a>
 
@@ -204,6 +218,7 @@ render_app_page_start(
             </div>
 
             <form method="post" class="app-form app-form--grid profile-form" novalidate>
+                <!-- Token CSRF e identificação do curso a atualizar. -->
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="update_course">
                 <input type="hidden" name="id" value="<?= (int) $editingCourse['id'] ?>">
@@ -229,6 +244,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <?php if ($deleteCandidate): ?>
+    <!-- Modal de confirmação para remoção de um curso. -->
     <div class="app-modal is-open" id="delete-course-modal">
         <a href="gestor_cursos.php" class="app-modal__backdrop" aria-label="Fechar confirmação de remoção"></a>
 
@@ -258,6 +274,7 @@ render_app_page_start(
 
 <?php if ($editingCourse || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -268,4 +285,5 @@ render_app_page_start(
     </script>
 <?php endif; ?>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

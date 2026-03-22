@@ -1,8 +1,12 @@
 <?php
+// Página do gestor para criação, edição, listagem e remoção de Unidades Curriculares.
+
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base da área de gestão.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +17,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Processa a criação e atualização das UCs.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_ucs.php');
 
@@ -21,11 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int) ($_POST['id'] ?? 0);
     $editRedirect = 'gestor_ucs.php?edit=' . $id;
 
+    // Valida o nome base antes de criar ou atualizar a UC.
     if ($name === '') {
         set_flash('error', 'Indica o nome da UC.');
         redirect_to($action === 'update_unit' && $id > 0 ? $editRedirect : 'gestor_ucs.php');
     }
 
+    // Atualiza uma UC já existente.
     if ($action === 'update_unit') {
         $currentUnit = db_fetch_one($pdo, 'SELECT id, name FROM units WHERE id = ? LIMIT 1', [$id]);
 
@@ -49,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_ucs.php');
     }
 
+    // Cria uma nova UC na base de dados.
     if ($action === 'create_unit') {
         if (db_fetch_one($pdo, 'SELECT id FROM units WHERE name = ? LIMIT 1', [$name])) {
             set_flash('error', 'Já existe uma UC com esse nome.');
@@ -61,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Processa a remoção direta de uma UC.
 if (isset($_GET['delete'])) {
     verify_csrf_value($_GET['csrf_token'] ?? null, 'gestor_ucs.php');
     $id = (int) $_GET['delete'];
@@ -69,6 +78,7 @@ if (isset($_GET['delete'])) {
     redirect_to('gestor_ucs.php');
 }
 
+// Carrega a UC em edição, o candidato a remoção e a lista completa de UCs.
 $editingUnit = isset($_GET['edit'])
     ? db_fetch_one($pdo, 'SELECT id, name FROM units WHERE id = ? LIMIT 1', [(int) $_GET['edit']])
     : null;
@@ -77,6 +87,7 @@ $deleteCandidate = isset($_GET['confirm_delete'])
     : null;
 $units = db_fetch_all($pdo, 'SELECT id, name, created_at, updated_at FROM units ORDER BY name');
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo à Gestão de Unidades Curriculares',
@@ -86,6 +97,7 @@ render_app_page_start(
 );
 ?>
 <section class="app-panel profile-panel">
+    <!-- Formulário para criação de novas Unidades Curriculares. -->
     <div class="app-panel__header">
         <div>
             <h2>Criar UC</h2>
@@ -94,6 +106,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form" novalidate>
+        <!-- Token CSRF e ação de criação. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="create_unit">
 
@@ -109,6 +122,7 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Tabela principal de consulta e gestão das UCs existentes. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de UCs</h2>
@@ -160,6 +174,7 @@ render_app_page_start(
 </section>
 
 <?php if ($editingUnit): ?>
+    <!-- Modal de edição de uma UC existente. -->
     <div class="app-modal is-open" id="edit-unit-modal">
         <a href="gestor_ucs.php" class="app-modal__backdrop" aria-label="Fechar edição da UC"></a>
 
@@ -177,6 +192,7 @@ render_app_page_start(
             </div>
 
             <form method="post" class="app-form app-form--grid profile-form" novalidate>
+                <!-- Token CSRF e identificação da UC a atualizar. -->
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="update_unit">
                 <input type="hidden" name="id" value="<?= (int) $editingUnit['id'] ?>">
@@ -195,6 +211,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <?php if ($deleteCandidate): ?>
+    <!-- Modal de confirmação para remoção de uma UC. -->
     <div class="app-modal is-open" id="delete-unit-modal">
         <a href="gestor_ucs.php" class="app-modal__backdrop" aria-label="Fechar confirmação de remoção"></a>
 
@@ -220,6 +237,7 @@ render_app_page_start(
 
 <?php if ($editingUnit || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -230,4 +248,5 @@ render_app_page_start(
     </script>
 <?php endif; ?>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

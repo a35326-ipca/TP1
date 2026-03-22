@@ -1,8 +1,11 @@
 ﻿<?php
+// Hub principal do funcionário, com atalhos para pedidos e pautas.
 require_once 'app_ui.php';
 
+// Garante que apenas funcionários autenticados podem aceder a esta área.
 require_funcionario();
 
+// Navegação base desta secção do portal do funcionário.
 $navItems = [
     app_nav_item('hub_funcionario.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -10,6 +13,7 @@ $navItems = [
     app_nav_item('funcionario_pautas.php', 'Pautas', 'grades'),
 ];
 
+// Métricas resumidas para apoio rápido ao trabalho diário do funcionário.
 $cards = [
     [
         'label' => 'Pedidos por decidir',
@@ -28,6 +32,7 @@ $cards = [
     ],
 ];
 
+// Renderiza o cabeçalho comum do hub do funcionário.
 render_app_page_start(
     'Gc',
     'Bem-vindo ao Hub',
@@ -39,6 +44,7 @@ render_app_page_start(
 render_metric_cards($cards);
 ?>
 <section class="hub-grid hub-grid--compact">
+    <!-- Atalhos principais para as áreas operacionais do funcionário. -->
     <article class="app-card hub-card hub-card--compact">
         <div class="hub-card__body">
             <h2>Pedidos de matrícula</h2>
@@ -59,4 +65,5 @@ render_metric_cards($cards);
     </article>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

@@ -1,12 +1,22 @@
 <?php
+// Ficheiro central de autenticação, autorização e apoio à aplicação.
+// Aqui ficam reunidas funções de:
+// - acesso à base de dados;
+// - gestão de sessão e utilizador autenticado;
+// - verificação de permissões;
+// - preparação automática de tabelas e dados base.
+
 require_once 'config.php';
 
+// Cabeçalhos HTTP de reforço básico de segurança para as páginas da aplicação.
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 
+// Tempo máximo de inatividade antes de expirar a sessão autenticada.
 const SESSION_TIMEOUT_SECONDS = 1800;
 
+// Helpers genéricos de leitura e escrita sobre PDO.
 function db_fetch_all(PDO $pdo, string $sql, array $params = []): array
 {
     $stmt = $pdo->prepare($sql);
@@ -44,6 +54,7 @@ function h(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+// Helpers de introspeção do esquema, usados nas migrações automáticas.
 function table_exists(PDO $pdo, string $table): bool
 {
     $sql = "
@@ -77,6 +88,7 @@ function index_exists(PDO $pdo, string $table, string $index): bool
     return (int) db_fetch_value($pdo, $sql, [$table, $index]) > 0;
 }
 
+// Garante a existência e compatibilidade da tabela de utilizadores.
 function ensure_users_schema(PDO $pdo): void
 {
     $pdo->exec("
@@ -102,6 +114,8 @@ function ensure_users_schema(PDO $pdo): void
     $pdo->exec("ALTER TABLE users MODIFY role ENUM('gestor', 'funcionario', 'aluno') NOT NULL DEFAULT 'aluno'");
 }
 
+// Cria e ajusta as tabelas principais da aplicação.
+// Este bloco permite que o projeto se auto-prepare na primeira execução.
 function ensure_primary_tables(PDO $pdo): void
 {
     $pdo->exec("
@@ -308,6 +322,7 @@ function ensure_primary_tables(PDO $pdo): void
     ");
 }
 
+// Controlo de frequência de submissões por utilizador e tipo de evento.
 function count_submission_events_last_24_hours(PDO $pdo, int $userId, string $eventType): int
 {
     return (int) db_fetch_value(
@@ -333,6 +348,7 @@ function register_submission_event(PDO $pdo, int $userId, string $eventType): vo
     );
 }
 
+// Migra dados de tabelas antigas para a estrutura atual, quando existirem.
 function migrate_legacy_catalog(PDO $pdo): void
 {
     if (table_exists($pdo, 'cursos') && (int) db_fetch_value($pdo, "SELECT COUNT(*) FROM courses") === 0) {
@@ -375,6 +391,7 @@ function migrate_legacy_catalog(PDO $pdo): void
     }
 }
 
+// Migra matrículas antigas para o novo modelo de pedidos de matrícula.
 function migrate_legacy_enrollments(PDO $pdo): void
 {
     if (
@@ -406,6 +423,7 @@ function migrate_legacy_enrollments(PDO $pdo): void
     ");
 }
 
+// Cria contas padrão mínimas para facilitar arranque e demonstração do sistema.
 function ensure_default_accounts(PDO $pdo): void
 {
     $defaultAccounts = [
@@ -449,6 +467,7 @@ function ensure_default_accounts(PDO $pdo): void
     }
 }
 
+// Remove registos apagados cujo prazo de retenção já terminou.
 function purge_deleted_student_profiles(PDO $pdo): void
 {
     $expiredProfiles = db_fetch_all(
@@ -467,6 +486,7 @@ function purge_deleted_student_profiles(PDO $pdo): void
     }
 }
 
+// Executa uma única vez a preparação inicial necessária para a aplicação funcionar.
 function auth_bootstrap(PDO $pdo): void
 {
     static $booted = false;
@@ -489,6 +509,7 @@ function auth_bootstrap(PDO $pdo): void
     $booted = true;
 }
 
+// Mensagens transitórias e reposição de dados de formulários após redirecionamentos.
 function set_flash(string $type, string $message): void
 {
     $_SESSION['flash'] = ['type' => $type, 'message' => $message];
@@ -524,12 +545,14 @@ function old_value(array $oldInput, string $key): string
     return h((string) ($oldInput[$key] ?? ''));
 }
 
+// Redirecionamento simples para centralizar saídas por HTTP.
 function redirect_to(string $path = 'index.php'): void
 {
     header('Location: ' . $path);
     exit;
 }
 
+// Estado atual do utilizador autenticado guardado em sessão.
 function current_user(): ?array
 {
     return $_SESSION['user'] ?? null;
@@ -550,6 +573,7 @@ function current_user_role(): ?string
     return user_role();
 }
 
+// Verificações de papéis/perfis para controlo de acesso.
 function has_role(string ...$roles): bool
 {
     return is_logged_in() && in_array(user_role(), $roles, true);
@@ -593,6 +617,7 @@ function dashboard_path_for_current_user(): string
     return 'hub_aluno.php';
 }
 
+// Guardas de acesso: interrompem a navegação se o utilizador não cumprir os requisitos.
 function require_login(): void
 {
     if (!is_logged_in()) {
@@ -626,6 +651,7 @@ function require_aluno(): void
     require_roles('aluno');
 }
 
+// Regras específicas do fluxo do aluno, dependentes do estado da ficha.
 function student_profile_status(PDO $pdo, ?int $userId = null): ?string
 {
     $resolvedUserId = $userId ?? (int) (current_user()['id'] ?? 0);
@@ -663,6 +689,7 @@ function normalize_email(string $email): string
     return mb_strtolower(trim($email));
 }
 
+// Atualiza os dados do utilizador em sessão a partir da base de dados.
 function refresh_session_user(PDO $pdo, int $id): void
 {
     $user = db_fetch_one($pdo, 'SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1', [$id]);
@@ -672,6 +699,7 @@ function refresh_session_user(PDO $pdo, int $id): void
     }
 }
 
+// Token CSRF usado para validar pedidos com alteração de estado.
 function csrf_token(): string
 {
     return $_SESSION['csrf_token'];
@@ -699,6 +727,7 @@ function verify_csrf(string $path = 'login.php'): void
     }
 }
 
+// Limitação simples de tentativas falhadas de autenticação por sessão.
 function record_login_attempt(): void
 {
     $window = 900;
@@ -725,6 +754,7 @@ function clear_login_attempts(): void
     unset($_SESSION['login_attempts']);
 }
 
+// Ações principais de autenticação: entrar, registar, sair e expirar sessão.
 function login_user(PDO $pdo, string $email, string $password): bool
 {
     $user = db_fetch_one($pdo, 'SELECT id, name, email, password_hash, role, created_at FROM users WHERE email = ? LIMIT 1', [$email]);
@@ -785,6 +815,7 @@ function enforce_session_timeout(): void
     $_SESSION['last_activity_at'] = $now;
 }
 
+// Gestão de upload da fotografia do perfil com validações básicas.
 function save_uploaded_profile_photo(array $file): array
 {
     $errorCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
@@ -829,6 +860,7 @@ function save_uploaded_profile_photo(array $file): array
     return ['path' => 'statics/uploads/profiles/' . $filename, 'error' => null];
 }
 
+// Remove ficheiros previamente guardados quando deixam de ser necessários.
 function delete_uploaded_file(?string $path): void
 {
     if (!$path) {
@@ -842,5 +874,6 @@ function delete_uploaded_file(?string $path): void
     }
 }
 
+// Arranque automático das rotinas essenciais sempre que este ficheiro é carregado.
 auth_bootstrap($pdo);
 enforce_session_timeout();

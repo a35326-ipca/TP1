@@ -1,6 +1,10 @@
 <?php
+// Ficheiro de apoio à interface da aplicação.
+// Centraliza helpers visuais, navegação e estrutura base das páginas autenticadas.
+
 require_once 'auth.php';
 
+// Representação normalizada de um item de navegação.
 function app_nav_item(string $href, string $label, string $icon): array
 {
     return [
@@ -10,6 +14,7 @@ function app_nav_item(string $href, string $label, string $icon): array
     ];
 }
 
+// Constrói a navegação do aluno e desbloqueia opções adicionais quando o acesso está aprovado.
 function build_student_nav_items(PDO $pdo, ?int $userId = null): array
 {
     $items = [
@@ -26,6 +31,7 @@ function build_student_nav_items(PDO $pdo, ?int $userId = null): array
     return $items;
 }
 
+// Mapa de identificadores lógicos para os SVG usados na interface.
 function app_icon(string $icon): string
 {
     return match ($icon) {
@@ -45,6 +51,8 @@ function app_icon(string $icon): string
     };
 }
 
+// Início do layout comum das páginas da aplicação.
+// Prepara o cabeçalho, a navegação lateral, os estilos e a zona de conteúdo principal.
 function render_app_page_start(
     string $title,
     string $pageTitle,
@@ -132,6 +140,7 @@ function render_app_page_end(): void
     <script src="statics/toasts.js"></script>
     <script>
         (function () {
+            // Ponto de montagem para modais carregados dinamicamente por fetch.
             const modalRoot = document.getElementById('appModalRoot');
 
             if (!modalRoot) {
@@ -140,11 +149,13 @@ function render_app_page_end(): void
 
             let activeDynamicModal = null;
 
+            // Mantém o estado visual do body sincronizado com a existência de modais abertos.
             function syncBodyModalState() {
                 const hasOpenModal = document.querySelector('.app-modal.is-open');
                 document.body.classList.toggle('app-modal-open', Boolean(hasOpenModal));
             }
 
+            // Fecha o modal dinâmico atualmente ativo.
             function closeDynamicModal() {
                 if (!activeDynamicModal) {
                     return;
@@ -155,6 +166,7 @@ function render_app_page_end(): void
                 syncBodyModalState();
             }
 
+            // Tenta obter o conteúdo do modal por HTTP; se falhar, faz navegação normal.
             async function openDynamicModal(url) {
                 try {
                     const response = await fetch(url, {
@@ -189,6 +201,7 @@ function render_app_page_end(): void
                 }
             }
 
+            // Interceta cliques em elementos marcados para abrir ou fechar modais.
             document.addEventListener('click', function (event) {
                 const trigger = event.target.closest('[data-modal-url]');
 
@@ -217,6 +230,7 @@ function render_app_page_end(): void
                 }
             });
 
+            // Fecha o modal ativo ao carregar em Escape.
             document.addEventListener('keydown', function (event) {
                 if (event.key === 'Escape' && activeDynamicModal) {
                     closeDynamicModal();
@@ -229,6 +243,7 @@ function render_app_page_end(): void
     <?php
 }
 
+// Pequeno componente para apresentar métricas resumidas em cartões.
 function render_metric_cards(array $cards): void
 {
     if ($cards === []) {
@@ -249,6 +264,7 @@ function render_metric_cards(array $cards): void
     <?php
 }
 
+// Apresenta o estado com a classe visual apropriada para cada tipo de situação.
 function status_badge(string $status): string
 {
     $class = match ($status) {

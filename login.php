@@ -1,13 +1,17 @@
 ﻿<?php
+// Página de autenticação para entrada no sistema.
 require_once 'auth.php';
 
+// Se o utilizador já estiver autenticado, segue diretamente para o respetivo hub.
 if (is_logged_in()) {
     redirect_to(dashboard_path_for_current_user());
 }
 
+// Processa a submissão do formulário de login.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('login.php');
 
+    // Recolhe e normaliza os dados introduzidos.
     $email = normalize_email($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $oldInput = ['email' => $email];
@@ -34,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_to(dashboard_path_for_current_user());
 }
 
+// Recupera mensagens flash e valores antigos do formulário para a interface.
 $flash = get_flash();
 $oldInput = get_old_input();
 ?>
@@ -46,6 +51,7 @@ $oldInput = get_old_input();
     <link rel="stylesheet" href="statics/toasts.css">
     <title>Gc</title>
     <style>
+        /* Variáveis e base visual da página de autenticação. */
         :root {
             --text: #172217;
             --muted: #607060;
@@ -190,10 +196,12 @@ $oldInput = get_old_input();
     </style>
 </head>
 <body>
+    <!-- Estrutura para apresentação de mensagens temporárias. -->
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
     <script id="flashData" type="application/json"><?= json_encode($flash, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
 
     <main class="card">
+        <!-- Formulário principal de autenticação. -->
         <h1>Iniciar sessão</h1>
         <p>Introduza as suas credenciais para aceder à sua conta.</p>
 
@@ -222,6 +230,7 @@ $oldInput = get_old_input();
         </div>
     </main>
     <script>
+        // Ícones usados para alternar a visibilidade do campo de palavra-passe.
         const eyeIcon = `
             <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
@@ -232,6 +241,7 @@ $oldInput = get_old_input();
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
             </svg>`;
 
+        // Liga os botões de mostrar/ocultar palavra-passe aos respetivos campos.
         document.querySelectorAll('[data-toggle-password]').forEach((button) => {
             button.addEventListener('click', () => {
                 const input = document.getElementById(button.dataset.togglePassword);

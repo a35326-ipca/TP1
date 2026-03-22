@@ -1,25 +1,33 @@
 <?php
+// Página do aluno para criação e consulta de pedidos de matrícula.
+
 require_once 'app_ui.php';
 
+// Garante que apenas alunos autenticados com acesso desbloqueado entram nesta área.
 require_aluno();
 require_student_access_unlocked($pdo);
 
+// Navegação base desta secção do portal do aluno.
 $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
     app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
-    app_nav_item('aluno_matricula.php', "Matr\u{00ED}cula", 'enrollment-student'),
+    app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
 
+// Substitui a navegação inicial pela versão dinâmica que respeita o estado atual do aluno.
 $navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
+// Processa a submissão de um novo pedido de matrícula.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('aluno_matricula.php');
 
+    // Recolhe e normaliza os dados enviados pelo formulário.
     $courseId = (int) ($_POST['course_id'] ?? 0);
     $studentNotes = trim((string) ($_POST['student_notes'] ?? ''));
 
+    // Valida a seleção de um curso ativo antes de prosseguir.
     if ($courseId <= 0) {
         set_flash('error', 'Seleciona um curso ativo para criar o pedido.');
         redirect_to('aluno_matricula.php');
@@ -28,10 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $course = db_fetch_one($pdo, 'SELECT id FROM courses WHERE id = ? AND is_active = 1 LIMIT 1', [$courseId]);
 
     if (!$course) {
-        set_flash('error', "O curso selecionado n\u{00E3}o est\u{00E1} dispon\u{00ED}vel.");
+        set_flash('error', 'O curso selecionado não está disponível.');
         redirect_to('aluno_matricula.php');
     }
 
+    // Impede duplicação de pedidos pendentes para o mesmo curso.
     $pending = db_fetch_one(
         $pdo,
         'SELECT id FROM enrollment_requests WHERE user_id = ? AND course_id = ? AND status = ? LIMIT 1',
@@ -39,26 +48,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     );
 
     if ($pending) {
-        set_flash('error', "J\u{00E1} tens um pedido pendente para esse curso.");
+        set_flash('error', 'Já tens um pedido pendente para esse curso.');
         redirect_to('aluno_matricula.php');
     }
 
+    // Aplica o limite de submissões definido para este tipo de pedido.
     if (!has_submission_limit_available($pdo, (int) current_user()['id'], 'enrollment_request')) {
-        set_flash('error', "S\u{00F3} podes criar 5 pedidos de matr\u{00ED}cula em 24 horas. Tenta novamente mais tarde.");
+        set_flash('error', 'Só podes criar 5 pedidos de matrícula em 24 horas. Tenta novamente mais tarde.');
         redirect_to('aluno_matricula.php');
     }
 
+    // Cria o pedido com estado inicial pendente.
     db_execute(
         $pdo,
         'INSERT INTO enrollment_requests (user_id, course_id, student_notes, status) VALUES (?, ?, ?, ?)',
         [current_user()['id'], $courseId, $studentNotes !== '' ? $studentNotes : null, 'pendente']
     );
 
-    set_flash('success', "Pedido de matr\u{00ED}cula criado com sucesso.");
+    set_flash('success', 'Pedido de matrícula criado com sucesso.');
     register_submission_event($pdo, (int) current_user()['id'], 'enrollment_request');
     redirect_to('aluno_matricula.php');
 }
 
+// Carrega os cursos disponíveis e o histórico de pedidos do aluno autenticado.
 $courses = db_fetch_all($pdo, 'SELECT id, name FROM courses WHERE is_active = 1 ORDER BY name');
 $requests = db_fetch_all(
     $pdo,
@@ -72,23 +84,26 @@ $requests = db_fetch_all(
     [current_user()['id']]
 );
 
+// Renderiza o cabeçalho comum da página e o enquadramento visual da área.
 render_app_page_start(
     'Gc',
-    "Bem-vindo ao Pedido de Matr\u{00ED}cula",
-    "Nesta \u{00E1}rea podes criar novos pedidos de matr\u{00ED}cula e acompanhar o estado de cada submiss\u{00E3}o ao longo do processo. Permite tamb\u{00E9}m consultar as decis\u{00F5}es registadas pelo funcion\u{00E1}rio, de forma simples, clara e organizada.",
+    'Bem-vindo ao Pedido de Matrícula',
+    'Nesta área podes criar novos pedidos de matrícula e acompanhar o estado de cada submissão ao longo do processo. Também podes consultar as decisões registadas pelo funcionário, de forma simples, clara e organizada.',
     $navItems,
     'aluno_matricula.php'
 );
 ?>
 <section class="app-panel">
+    <!-- Formulário para criação de um novo pedido de matrícula. -->
     <div class="app-panel__header">
         <div>
             <h2>Novo pedido</h2>
-            <p>Nesta sec&ccedil;&atilde;o podes selecionar um curso dispon&iacute;vel e criar um novo pedido de matr&iacute;cula. Tens tamb&eacute;m a possibilidade de adicionar observa&ccedil;&otilde;es, caso seja necess&aacute;rio, para fornecer informa&ccedil;&otilde;es adicionais ao funcion&aacute;rio durante a an&aacute;lise do pedido.</p>
+            <p>Nesta secção podes selecionar um curso disponível e criar um novo pedido de matrícula. Também podes acrescentar observações, se necessário, para fornecer informações adicionais ao funcionário durante a análise do pedido.</p>
         </div>
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form student-enrollment-form" novalidate>
+        <!-- Token CSRF para proteção da submissão. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <div class="app-field student-enrollment-form__field-full">
             <label for="course_id">Curso</label>
@@ -100,7 +115,7 @@ render_app_page_start(
             </select>
         </div>
         <div class="app-field student-enrollment-form__field-full">
-            <label for="student_notes">Observa&ccedil;&otilde;es do aluno</label>
+            <label for="student_notes">Observações do aluno</label>
             <textarea id="student_notes" name="student_notes"></textarea>
         </div>
 
@@ -111,10 +126,11 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Tabela com o histórico e o estado dos pedidos já submetidos. -->
     <div class="app-panel__header">
         <div>
-            <h2>Hist&oacute;rico de pedidos</h2>
-            <p>Nesta sec&ccedil;&atilde;o podes consultar o hist&oacute;rico de todos os pedidos de matr&iacute;cula realizados, verificar o estado atual de cada um e acompanhar as decis&otilde;es mais recentes associadas a cada pedido.</p>
+            <h2>Histórico de pedidos</h2>
+            <p>Nesta secção podes consultar o histórico de todos os pedidos de matrícula realizados, verificar o estado atual de cada um e acompanhar as decisões mais recentes associadas a cada pedido.</p>
         </div>
     </div>
 
@@ -131,17 +147,19 @@ render_app_page_start(
                 <tr>
                     <th>Curso</th>
                     <th>Notas do aluno</th>
-                    <th>Decis&atilde;o</th>
+                    <th>Decisão</th>
                     <th class="app-table__student-request-created-col">Criado em</th>
                     <th class="app-table__student-request-status-col">Estado</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($requests === []): ?>
+                    <!-- Estado vazio quando o aluno ainda não submeteu pedidos. -->
                     <tr>
-                        <td colspan="5"><p class="empty-text">Ainda n&atilde;o tens pedidos de matr&iacute;cula.</p></td>
+                        <td colspan="5"><p class="empty-text">Ainda não tens pedidos de matrícula.</p></td>
                     </tr>
                 <?php else: ?>
+                    <!-- Lista cronológica dos pedidos do aluno. -->
                     <?php foreach ($requests as $request): ?>
                         <tr>
                             <td><div class="app-text-flow--scroll"><?= h($request['course_name']) ?></div></td>
@@ -160,4 +178,5 @@ render_app_page_start(
     </div>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

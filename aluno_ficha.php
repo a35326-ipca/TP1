@@ -1,30 +1,39 @@
 <?php
+// Página do aluno para criação, atualização e submissão da ficha pessoal.
+
 require_once 'app_ui.php';
 
+// Garante que apenas alunos autenticados podem aceder a esta área.
 require_aluno();
 
+// Navegação base desta secção do portal do aluno.
 $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
     app_nav_item('aluno_ficha.php', 'Ficha', 'profile'),
-    app_nav_item('aluno_matricula.php', "Matr\u{00ED}cula", 'enrollment-student'),
+    app_nav_item('aluno_matricula.php', 'Matrícula', 'enrollment-student'),
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
 
+// Substitui a navegação inicial pela versão dinâmica que respeita o estado atual do aluno.
 $navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
+// Carrega o perfil atual do aluno e os cursos ativos disponíveis.
 $profile = db_fetch_one($pdo, 'SELECT * FROM student_profiles WHERE user_id = ? LIMIT 1', [current_user()['id']]);
 $activeCourses = db_fetch_all($pdo, 'SELECT id, name FROM courses WHERE is_active = 1 ORDER BY name');
 $editable = !$profile || in_array($profile['status'], ['rascunho', 'rejeitada'], true);
 
+// Processa a gravação do rascunho ou a submissão da ficha.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('aluno_ficha.php');
 
+    // Impede alterações quando a ficha já não está num estado editável.
     if (!$editable) {
-        set_flash('error', "A ficha atual n\u{00E3}o pode ser editada neste estado.");
+        set_flash('error', 'A ficha atual não pode ser editada neste estado.');
         redirect_to('aluno_ficha.php');
     }
 
+    // Recolhe e normaliza os dados recebidos do formulário.
     $action = $_POST['action'] ?? '';
     $courseId = (int) ($_POST['course_id'] ?? 0);
     $fullName = trim((string) ($_POST['full_name'] ?? ''));
@@ -34,33 +43,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $address = trim((string) ($_POST['address'] ?? ''));
     $notes = trim((string) ($_POST['notes'] ?? ''));
 
+    // Valida o curso escolhido para a ficha.
     if ($courseId <= 0) {
-        set_flash('error', "Seleciona um curso v\u{00E1}lido para a ficha.");
+        set_flash('error', 'Seleciona um curso válido para a ficha.');
         redirect_to('aluno_ficha.php');
     }
 
     $selectedCourse = db_fetch_one($pdo, 'SELECT id FROM courses WHERE id = ? AND is_active = 1 LIMIT 1', [$courseId]);
 
     if (!$selectedCourse) {
-        set_flash('error', "O curso selecionado j\u{00E1} n\u{00E3}o est\u{00E1} dispon\u{00ED}vel para a ficha.");
+        set_flash('error', 'O curso selecionado já não está disponível para a ficha.');
         redirect_to('aluno_ficha.php');
     }
 
+    // Valida o e-mail de contacto, quando preenchido.
     if ($contactEmail !== '' && !filter_var($contactEmail, FILTER_VALIDATE_EMAIL)) {
-        set_flash('error', "O e-mail de contacto n\u{00E3}o \u{00E9} v\u{00E1}lido.");
+        set_flash('error', 'O e-mail de contacto não é válido.');
         redirect_to('aluno_ficha.php');
     }
 
+    // Valida a data de nascimento e impede datas futuras.
     if ($birthDate !== '') {
         $birthDateObject = DateTime::createFromFormat('Y-m-d', $birthDate);
         $validBirthDate = $birthDateObject && $birthDateObject->format('Y-m-d') === $birthDate;
 
         if (!$validBirthDate || $birthDate > date('Y-m-d')) {
-            set_flash('error', "Indica uma data de nascimento v\u{00E1}lida.");
+            set_flash('error', 'Indica uma data de nascimento válida.');
             redirect_to('aluno_ficha.php');
         }
     }
 
+    // Processa o eventual upload da fotografia.
     $upload = save_uploaded_profile_photo($_FILES['photo'] ?? []);
 
     if ($upload['error']) {
@@ -70,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $photoPath = $upload['path'] ?? ($profile['photo_path'] ?? null);
 
+    // Quando a ação é submeter, aplica validações adicionais obrigatórias.
     if ($action === 'submit_profile') {
         if ($fullName === '' || $birthDate === '' || $contactEmail === '' || $phone === '' || $address === '' || !$photoPath) {
             if ($upload['path']) {
@@ -85,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 delete_uploaded_file($upload['path']);
             }
 
-            set_flash('error', "S\u{00F3} podes submeter a ficha 5 vezes em 24 horas. Tenta novamente mais tarde.");
+            set_flash('error', 'Só podes submeter a ficha 5 vezes em 24 horas. Tenta novamente mais tarde.');
             redirect_to('aluno_ficha.php');
         }
 
@@ -94,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = 'rascunho';
     }
 
+    // Atualiza a ficha existente ou cria uma nova, consoante o caso.
     if ($profile) {
         $resetReviewData = $status === 'submetida'
             ? [null, null, null]
@@ -144,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
     }
 
+    // Remove a fotografia anterior se tiver sido substituída por uma nova.
     if ($upload['path'] && !empty($profile['photo_path']) && $profile['photo_path'] !== $upload['path']) {
         delete_uploaded_file($profile['photo_path']);
     }
@@ -156,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_to('aluno_ficha.php');
 }
 
+// Recarrega a ficha já com o nome do curso para apresentação no ecrã.
 $profile = db_fetch_one(
     $pdo,
     'SELECT sp.*, c.name AS course_name
@@ -166,21 +183,23 @@ $profile = db_fetch_one(
 );
 $editable = !$profile || in_array($profile['status'], ['rascunho', 'rejeitada'], true);
 
+// Renderiza o cabeçalho comum da página e o enquadramento visual da área.
 render_app_page_start(
     'Gc',
-    "Bem-vindo \u{00E0} Ficha do Aluno",
-    "Nesta \u{00E1}rea podes preencher e atualizar os teus dados pessoais, adicionar a tua fotografia e submeter a ficha para valida\u{00E7}\u{00E3}o pedag\u{00F3}gica. Este processo \u{00E9} necess\u{00E1}rio para formalizar a tua integra\u{00E7}\u{00E3}o como aluno no sistema escolar, garantindo que a tua informa\u{00E7}\u{00E3}o est\u{00E1} completa, correta e pronta para an\u{00E1}lise.",
+    'Bem-vindo à Ficha do Aluno',
+    'Nesta área podes preencher e atualizar os teus dados pessoais, adicionar a tua fotografia e submeter a ficha para validação pedagógica. Este processo é necessário para formalizar a tua integração como aluno no sistema escolar, garantindo que a tua informação está completa, correta e pronta para análise.',
     $navItems,
     'aluno_ficha.php'
 );
 ?>
 <section class="app-panel">
+    <!-- Resumo do estado atual da ficha e das condições de acesso às restantes áreas. -->
     <div class="app-panel__header">
         <div>
             <h2>Estado atual</h2>
-            <p><strong>S&oacute; poder&aacute;s aceder &agrave; matr&iacute;cula e &agrave;s notas depois de preencher a ficha e esta ser aceite.</strong></p>
-            <p><?= $profile ? 'A tua ficha j&aacute; existe e podes acompanhar o estado abaixo.' : 'Ainda n&atilde;o tens ficha criada. Come&ccedil;a por guardar um rascunho.' ?></p>
-            <p>* = Campos obrigat&oacute;rios</p>
+            <p><strong>Só poderás aceder à matrícula e às notas depois de preencheres a ficha e de esta ser aprovada.</strong></p>
+            <p><?= $profile ? 'A tua ficha já existe e podes acompanhar o estado abaixo.' : 'Ainda não tens ficha criada. Começa por guardar um rascunho.' ?></p>
+            <p>* = Campos obrigatórios</p>
         </div>
     </div>
 
@@ -192,18 +211,18 @@ render_app_page_start(
                 <p><strong>Curso:</strong> <span class="app-text-flow--scroll"><?= h($profile['course_name'] ?? '-') ?></span></p>
                 <p><strong>Data de nascimento:</strong> <span class="app-text-flow"><?= h((string) ($profile['birth_date'] ?? '-')) ?></span></p>
                 <p><strong>Morada:</strong> <span class="app-text-flow--scroll"><?= h($profile['address'] ?? '-') ?></span></p>
-                <p><strong>Submetida:</strong> <span class="app-text-flow"><?= h((string) ($profile['submitted_at'] ?? '-')) ?></span></p>
-                <p><strong>Observa&ccedil;&otilde;es do gestor:</strong> <span class="app-text-flow--scroll"><?= h($profile['review_notes'] ?? '-') ?></span></p>
+                <p><strong>Data de submissão:</strong> <span class="app-text-flow"><?= h((string) ($profile['submitted_at'] ?? '-')) ?></span></p>
+                <p><strong>Observações da análise:</strong> <span class="app-text-flow--scroll"><?= h($profile['review_notes'] ?? '-') ?></span></p>
             </div>
         </article>
         <article class="app-card review-profile-card review-profile-card--photo student-profile-summary-card">
             <h2>Fotografia do aluno</h2>
-            <p class="helper-text">Aqui est&aacute; a fotografia submetida por ti.</p>
+            <p class="helper-text">Aqui podes ver a fotografia submetida na tua ficha.</p>
             <div class="review-profile-photo-wrap">
                 <?php if (!empty($profile['photo_path'])): ?>
                     <img src="<?= h($profile['photo_path']) ?>" alt="Fotografia do aluno" class="photo-preview photo-preview--modal student-profile-photo-preview">
                 <?php else: ?>
-                    <p class="empty-text">Ainda n&atilde;o existe fotografia submetida.</p>
+                    <p class="empty-text">Ainda não existe fotografia submetida.</p>
                 <?php endif; ?>
             </div>
         </article>
@@ -211,14 +230,16 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Formulário principal da ficha do aluno. -->
     <div class="app-panel__header">
         <div>
             <h2><?= $editable ? 'Editar ficha' : 'Ficha bloqueada' ?></h2>
-            <p><?= $editable ? 'Podes guardar rascunho ou submeter a ficha para valida&ccedil;&atilde;o.' : 'A ficha s&oacute; volta a ser edit&aacute;vel se estiver em rascunho ou rejeitada.' ?></p>
+            <p><?= $editable ? 'Podes guardar um rascunho ou submeter a ficha para validação.' : 'A ficha só volta a estar editável se ficar em rascunho ou rejeitada.' ?></p>
         </div>
     </div>
 
     <form method="post" enctype="multipart/form-data" class="app-form app-form--grid" novalidate>
+        <!-- Token CSRF para proteção da submissão. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <div class="app-field">
             <label for="course_id">Curso pretendido *</label>
@@ -250,11 +271,11 @@ render_app_page_start(
             <input id="address" type="text" name="address" value="<?= h($profile['address'] ?? '') ?>" <?= $editable ? '' : 'disabled' ?>>
         </div>
         <div class="app-field student-profile-photo-field">
-            <label for="photo">Fotografia (JPG/PNG at&eacute; 2MB) *</label>
+            <label for="photo">Fotografia (JPG/PNG até 2 MB) *</label>
             <input id="photo" type="file" name="photo" accept=".jpg,.jpeg,.png" <?= $editable ? '' : 'disabled' ?>>
         </div>
         <div class="app-field student-profile-notes-field">
-            <label for="notes">Observa&ccedil;&otilde;es</label>
+            <label for="notes">Observações</label>
             <textarea id="notes" name="notes" <?= $editable ? '' : 'disabled' ?>><?= h($profile['notes'] ?? '') ?></textarea>
         </div>
 
@@ -267,4 +288,5 @@ render_app_page_start(
     </form>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

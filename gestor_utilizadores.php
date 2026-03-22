@@ -1,8 +1,12 @@
 <?php
+// Página do gestor para criação, edição, listagem e remoção de utilizadores.
+
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base da área de gestão.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +17,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Processa a criação e atualização de utilizadores.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_utilizadores.php');
 
@@ -22,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role = $_POST['role'] ?? '';
     $password = $_POST['password'] ?? '';
 
+    // Cria uma nova conta no sistema.
     if ($action === 'create_user') {
         if ($name === '' || $email === '' || $password === '' || !in_array($role, ['aluno', 'funcionario', 'gestor'], true)) {
             set_flash('error', 'Preenche nome, e-mail, cargo e palavra-passe.');
@@ -48,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_utilizadores.php');
     }
 
+    // Atualiza uma conta existente, incluindo palavra-passe quando fornecida.
     if ($action === 'update_user') {
         $id = (int) ($_POST['id'] ?? 0);
         $editRedirect = 'gestor_utilizadores.php?edit=' . $id;
@@ -111,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Processa a remoção direta de utilizadores.
 if (isset($_GET['delete'])) {
     verify_csrf_value($_GET['csrf_token'] ?? null, 'gestor_utilizadores.php');
     $id = (int) $_GET['delete'];
@@ -125,6 +133,7 @@ if (isset($_GET['delete'])) {
     redirect_to('gestor_utilizadores.php');
 }
 
+// Carrega o utilizador em edição, o candidato a remoção e a lista completa de utilizadores.
 $editingUser = isset($_GET['edit'])
     ? db_fetch_one($pdo, 'SELECT id, name, email, role FROM users WHERE id = ? LIMIT 1', [(int) $_GET['edit']])
     : null;
@@ -133,6 +142,7 @@ $deleteCandidate = isset($_GET['confirm_delete'])
     : null;
 $users = db_fetch_all($pdo, "SELECT id, name, email, role, created_at FROM users ORDER BY FIELD(role, 'gestor', 'funcionario', 'aluno'), name");
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo à Gestão de Utilizadores',
@@ -142,6 +152,7 @@ render_app_page_start(
 );
 ?>
 <section class="app-panel profile-panel">
+    <!-- Formulário para criação de novos utilizadores. -->
     <div class="app-panel__header">
         <div>
             <h2>Criar utilizador</h2>
@@ -150,6 +161,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form" novalidate>
+        <!-- Token CSRF e ação de criação. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="create_user">
 
@@ -188,6 +200,7 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Tabela principal de consulta e gestão das contas existentes. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de utilizadores</h2>
@@ -244,6 +257,7 @@ render_app_page_start(
 </section>
 
 <?php if ($editingUser): ?>
+    <!-- Modal de edição de um utilizador existente. -->
     <div class="app-modal is-open" id="edit-user-modal">
         <a href="gestor_utilizadores.php" class="app-modal__backdrop" aria-label="Fechar edição do utilizador"></a>
 
@@ -261,6 +275,7 @@ render_app_page_start(
             </div>
 
             <form method="post" class="app-form app-form--grid profile-form" novalidate>
+                <!-- Token CSRF e identificação do utilizador a atualizar. -->
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="update_user">
                 <input type="hidden" name="id" value="<?= (int) $editingUser['id'] ?>">
@@ -302,6 +317,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <?php if ($deleteCandidate && (int) $deleteCandidate['id'] !== (int) current_user()['id']): ?>
+    <!-- Modal de confirmação para remoção de um utilizador. -->
     <div class="app-modal is-open" id="delete-user-modal">
         <a href="gestor_utilizadores.php" class="app-modal__backdrop" aria-label="Fechar confirmação de remoção"></a>
 
@@ -332,6 +348,7 @@ render_app_page_start(
 
 <?php if ($editingUser || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -342,6 +359,7 @@ render_app_page_start(
     </script>
 <?php endif; ?>
 <script>
+    // Ícones usados para alternar a visibilidade do campo de palavra-passe.
     const eyeIcon = `
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
@@ -352,6 +370,7 @@ render_app_page_start(
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
         </svg>`;
 
+    // Liga os botões de mostrar/ocultar palavra-passe aos respetivos campos.
     document.querySelectorAll('[data-toggle-password]').forEach((button) => {
         button.addEventListener('click', () => {
             const input = document.getElementById(button.dataset.togglePassword);
@@ -363,4 +382,5 @@ render_app_page_start(
     });
 </script>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

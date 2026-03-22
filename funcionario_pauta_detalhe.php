@@ -1,8 +1,12 @@
 <?php
+// Página de detalhe da pauta, usada para adicionar alunos elegíveis e lançar notas finais.
+
 require_once 'app_ui.php';
 
+// Garante que apenas funcionários autenticados podem gerir pautas.
 require_funcionario();
 
+// Normaliza e valida a nota final introduzida manualmente.
 function normalize_final_grade(mixed $value): array
 {
     $trimmed = trim((string) $value);
@@ -26,6 +30,7 @@ function normalize_final_grade(mixed $value): array
     return ['valid' => true, 'value' => $grade];
 }
 
+// Obtém o identificador da pauta pedida e carrega os respetivos dados.
 $sheetId = (int) ($_GET['id'] ?? 0);
 $sheet = db_fetch_one(
     $pdo,
@@ -41,6 +46,7 @@ if (!$sheet) {
     redirect_to('funcionario_pautas.php');
 }
 
+// Navegação base desta área do funcionário.
 $navItems = [
     app_nav_item('hub_funcionario.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -48,10 +54,12 @@ $navItems = [
     app_nav_item('funcionario_pautas.php', 'Pautas', 'grades'),
 ];
 
+// Processa operações de escrita sobre a pauta.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('funcionario_pauta_detalhe.php?id=' . $sheetId);
     $action = $_POST['action'] ?? '';
 
+    // Guarda as notas finais já introduzidas na tabela.
     if ($action === 'save_grades') {
         $grades = is_array($_POST['grades'] ?? null) ? $_POST['grades'] : [];
         $currentGrades = db_fetch_all(
@@ -62,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [$sheetId]
         );
 
+        // Indexa as notas atuais por linha para permitir comparação e validação.
         $currentGradesById = [];
         foreach ($currentGrades as $currentGrade) {
             $currentGradesById[(int) $currentGrade['id']] = $currentGrade['final_grade'] === null
@@ -69,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 : (float) $currentGrade['final_grade'];
         }
 
+        // Valida apenas linhas que pertencem realmente à pauta atual.
         $validatedGrades = [];
         foreach ($grades as $rowId => $grade) {
             $rowId = (int) $rowId;
@@ -86,7 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $validatedGrades[$rowId] = $validated['value'];
         }
 
+        // Evita gravações desnecessárias quando não houve alterações efetivas.
         $hasChanges = false;
+        // Atualiza cada registo da pauta com a nova nota final.
         foreach ($validatedGrades as $rowId => $finalGrade) {
             if ($currentGradesById[$rowId] !== $finalGrade) {
                 $hasChanges = true;
@@ -111,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('funcionario_pauta_detalhe.php?id=' . $sheetId);
     }
 
+    // Adiciona à pauta alunos aprovados e ainda não associados.
     if ($action === 'add_students') {
         $studentIds = array_map('intval', $_POST['student_ids'] ?? []);
 
@@ -127,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Carrega os alunos já presentes na pauta e os alunos elegíveis que ainda podem ser adicionados.
 $rows = db_fetch_all(
     $pdo,
     'SELECT gss.id, gss.final_grade, u.name AS student_name, u.email AS student_email
@@ -152,6 +166,7 @@ $eligibleStudents = db_fetch_all(
     [(int) $sheet['unit_id'], $sheetId]
 );
 
+// Renderiza o cabeçalho comum da página e as ações de navegação contextual.
 render_app_page_start(
     'Gc',
     'Detalhes da Pauta',
@@ -169,6 +184,7 @@ render_app_page_start(
 );
 ?>
 <section class="metric-grid">
+    <!-- Resumo rápido da pauta selecionada. -->
     <article class="metric-card">
         <span class="metric-card__label">UC</span>
         <strong class="metric-card__value"><?= h($sheet['unit_name']) ?></strong>
@@ -185,6 +201,7 @@ render_app_page_start(
 
 <?php if ($eligibleStudents !== []): ?>
     <section class="app-panel">
+        <!-- Área de inclusão manual de alunos elegíveis ainda não associados à pauta. -->
         <div class="app-panel__header">
             <div>
                 <h2>Adicionar alunos elegíveis</h2>
@@ -193,6 +210,7 @@ render_app_page_start(
         </div>
 
         <form method="post" class="app-form" novalidate>
+            <!-- Token CSRF e indicação da ação a executar. -->
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="action" value="add_students">
             <div class="card-grid">
@@ -212,6 +230,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <section class="app-panel">
+    <!-- Gestão e edição das notas finais já atribuídas aos alunos da pauta. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão das notas finais</h2>
@@ -220,6 +239,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form profile-form pautas-detail-form" novalidate>
+        <!-- Token CSRF e ação de gravação das classificações. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="save_grades">
         <div class="app-table-wrap">
@@ -238,10 +258,12 @@ render_app_page_start(
                 </thead>
                 <tbody>
                     <?php if ($rows === []): ?>
+                        <!-- Estado vazio quando ainda não existem alunos na pauta. -->
                         <tr>
                             <td colspan="3"><p class="empty-text">Ainda não existem alunos associados a esta pauta.</p></td>
                         </tr>
                     <?php else: ?>
+                        <!-- Lista editável das notas finais por aluno. -->
                         <?php foreach ($rows as $row): ?>
                             <tr>
                                 <td class="app-table__name-col"><div class="app-text-flow--scroll"><?= h($row['student_name']) ?></div></td>
@@ -269,4 +291,5 @@ render_app_page_start(
     </form>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

@@ -1,8 +1,11 @@
 ﻿<?php
+// Página do gestor para revisão, decisão e remoção de fichas de aluno.
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base da área de gestão.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +16,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Renderiza o modal de revisão detalhada de uma ficha.
 function render_profile_review_modal(array $reviewingProfile, array $decisionHistory, int $decisionHistoryCount, string $selectedReviewStatus, string $reviewNotesValue): void
 {
     ?>
@@ -62,6 +66,7 @@ function render_profile_review_modal(array $reviewingProfile, array $decisionHis
             <article class="app-card review-profile-card review-profile-card--decision">
                 <h2>Decisão pedagógica</h2>
                 <form method="post" class="app-form review-profile-form" novalidate>
+                    <!-- Token CSRF e identificação da ficha em revisão. -->
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="action" value="review_profile">
                     <input type="hidden" name="id" value="<?= (int) $reviewingProfile['id'] ?>">
@@ -112,12 +117,15 @@ function render_profile_review_modal(array $reviewingProfile, array $decisionHis
     <?php
 }
 
+// Processa decisões e remoções de fichas.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_fichas.php');
 
     $action = $_POST['action'] ?? '';
 
+    // Guarda a decisão pedagógica sobre uma ficha.
     if ($action === 'review_profile') {
+        // Recolhe os dados enviados pelo formulário de revisão.
         $id = (int) ($_POST['id'] ?? 0);
         $status = $_POST['status'] ?? '';
         $reviewNotes = trim($_POST['review_notes'] ?? '');
@@ -129,11 +137,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('gestor_fichas.php');
         }
 
+        // Só permite rever fichas que estejam dentro dos estados geríveis.
         if (!in_array($profileToReview['status'] ?? '', ['submetida', 'rejeitada', 'aprovada'], true)) {
             set_flash('error', 'Só podes editar fichas submetidas, rejeitadas ou aprovadas.');
             redirect_to('gestor_fichas.php');
         }
 
+        // Valida a decisão escolhida.
         if (!in_array($status, ['aprovada', 'rejeitada'], true)) {
             set_flash('error', 'Seleciona uma decisão válida para a ficha.');
             set_old_input([
@@ -143,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('gestor_fichas.php?review=' . $id);
         }
 
+        // Evita gravações redundantes quando nada mudou.
         if (
             in_array($profileToReview['status'] ?? '', ['rejeitada', 'aprovada'], true)
             && $status === ($profileToReview['status'] ?? '')
@@ -156,6 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('gestor_fichas.php?review=' . $id);
         }
 
+        // Regista a decisão no histórico de auditoria.
         db_execute(
             $pdo,
             'INSERT INTO student_profile_decisions (
@@ -176,6 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         );
 
+        // Atualiza o estado atual da ficha.
         db_execute(
             $pdo,
             'UPDATE student_profiles
@@ -188,6 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_fichas.php');
     }
 
+    // Remove uma ficha da lista ativa e envia-a para retenção temporária.
     if ($action === 'delete_profile') {
         $id = (int) ($_POST['id'] ?? 0);
         $profileToDelete = db_fetch_one($pdo, 'SELECT * FROM student_profiles WHERE id = ? LIMIT 1', [$id]);
@@ -205,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
 
         try {
+            // Guarda uma cópia da ficha eliminada para purge posterior.
             db_execute(
                 $pdo,
                 'INSERT INTO deleted_student_profiles (
@@ -250,6 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Resolve qual a ficha a abrir em modal de revisão.
 $modalRequestId = isset($_GET['modal'], $_GET['id']) && $_GET['modal'] === 'review'
     ? (int) $_GET['id']
     : null;
@@ -257,6 +273,7 @@ $modalRequestId = isset($_GET['modal'], $_GET['id']) && $_GET['modal'] === 'revi
 $reviewProfileId = isset($_GET['review']) ? (int) $_GET['review'] : null;
 $activeReviewProfileId = $modalRequestId ?? $reviewProfileId;
 
+// Carrega a ficha em revisão com os dados necessários para o modal.
 $reviewingProfile = $activeReviewProfileId
     ? db_fetch_one(
         $pdo,
@@ -274,6 +291,7 @@ if ($reviewingProfile && !in_array($reviewingProfile['status'] ?? '', ['submetid
     redirect_to('gestor_fichas.php');
 }
 
+// Carrega o histórico resumido de decisões da ficha em revisão.
 $decisionHistoryCount = $reviewingProfile
     ? (int) db_fetch_value(
         $pdo,
@@ -297,6 +315,7 @@ $decisionHistory = $reviewingProfile
     )
     : [];
 
+// Carrega a ficha candidata a eliminação.
 $deleteCandidate = isset($_GET['confirm_delete'])
     ? db_fetch_one(
         $pdo,
@@ -313,6 +332,7 @@ if ($deleteCandidate && !in_array($deleteCandidate['status'] ?? '', ['rejeitada'
     redirect_to('gestor_fichas.php');
 }
 
+// Lista principal das fichas geridas nesta página.
 $profiles = db_fetch_all(
     $pdo,
     'SELECT sp.id, sp.full_name, sp.contact_email, sp.phone, sp.photo_path, sp.status, sp.submitted_at, sp.reviewed_at,
@@ -324,15 +344,18 @@ $profiles = db_fetch_all(
      ORDER BY FIELD(sp.status, \'submetida\', \'rejeitada\', \'aprovada\'), sp.updated_at DESC'
 );
 
+// Recupera os valores temporários do formulário de revisão, se existirem.
 $oldInput = get_old_input();
 $selectedReviewStatus = $oldInput['status'] ?? (($reviewingProfile && in_array(($reviewingProfile['status'] ?? ''), ['rejeitada', 'aprovada'], true)) ? $reviewingProfile['status'] : 'aprovada');
 $reviewNotesValue = $oldInput['review_notes'] ?? ($reviewingProfile['review_notes'] ?? '');
 
+// Quando o modal é pedido por fetch, devolve apenas o fragmento HTML.
 if ($modalRequestId && $reviewingProfile) {
     render_profile_review_modal($reviewingProfile, $decisionHistory, $decisionHistoryCount, $selectedReviewStatus, $reviewNotesValue);
     exit;
 }
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo à Gestão de Fichas',
@@ -462,6 +485,7 @@ render_app_page_start(
             </div>
 
             <form method="post" class="app-form" novalidate>
+                <!-- Token CSRF e identificação da ficha a remover. -->
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="delete_profile">
                 <input type="hidden" name="id" value="<?= (int) $deleteCandidate['id'] ?>">
@@ -476,6 +500,7 @@ render_app_page_start(
 
 <?php if ($reviewingProfile || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -487,6 +512,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <section class="app-panel">
+    <!-- Tabela principal de gestão das fichas submetidas. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de Fichas</h2>
@@ -551,4 +577,5 @@ render_app_page_start(
     </div>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

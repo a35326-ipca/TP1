@@ -1,8 +1,12 @@
 <?php
+// Página do gestor para criação, edição, listagem e remoção de entradas do plano de estudos.
+
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base da área de gestão.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +17,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Processa a criação e atualização de entradas do plano de estudos.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('gestor_plano.php');
 
@@ -24,11 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $semester = (int) ($_POST['semester'] ?? 0);
     $editRedirect = 'gestor_plano.php?edit=' . $id;
 
+    // Valida os campos principais antes de criar ou atualizar a entrada.
     if ($courseId <= 0 || $unitId <= 0 || $yearNumber < 1 || $yearNumber > 5 || !in_array($semester, [1, 2], true)) {
         set_flash('error', 'Seleciona curso, UC, ano curricular e semestre válidos.');
         redirect_to($action === 'update_plan' && $id > 0 ? $editRedirect : 'gestor_plano.php');
     }
 
+    // Cria uma nova associação entre curso e UC.
     if ($action === 'create_plan') {
         $existing = db_fetch_one(
             $pdo,
@@ -51,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_plano.php');
     }
 
+    // Atualiza uma entrada existente do plano de estudos.
     if ($action === 'update_plan') {
         $currentEntry = db_fetch_one(
             $pdo,
@@ -95,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Processa a remoção direta de uma entrada do plano.
 if (isset($_GET['delete'])) {
     verify_csrf_value($_GET['csrf_token'] ?? null, 'gestor_plano.php');
     $id = (int) $_GET['delete'];
@@ -103,6 +112,7 @@ if (isset($_GET['delete'])) {
     redirect_to('gestor_plano.php');
 }
 
+// Carrega a entrada em edição, o candidato a remoção e os dados auxiliares da página.
 $editingEntry = isset($_GET['edit'])
     ? db_fetch_one($pdo, 'SELECT id, course_id, unit_id, year_number, semester FROM study_plan WHERE id = ? LIMIT 1', [(int) $_GET['edit']])
     : null;
@@ -128,6 +138,7 @@ $entries = db_fetch_all(
      ORDER BY c.name, sp.year_number, sp.semester, u.name'
 );
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo ao Plano de Estudos',
@@ -137,6 +148,7 @@ render_app_page_start(
 );
 ?>
 <section class="app-panel profile-panel">
+    <!-- Formulário para criação de uma nova entrada do plano de estudos. -->
     <div class="app-panel__header">
         <div>
             <h2>Criar entrada</h2>
@@ -145,6 +157,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form" novalidate>
+        <!-- Token CSRF e ação de criação. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="create_plan">
 
@@ -191,6 +204,7 @@ render_app_page_start(
 </section>
 
 <section class="app-panel">
+    <!-- Tabela principal de consulta e gestão das entradas do plano. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de planos</h2>
@@ -250,6 +264,7 @@ render_app_page_start(
 </section>
 
 <?php if ($editingEntry): ?>
+    <!-- Modal de edição de uma entrada existente do plano. -->
     <div class="app-modal is-open" id="edit-plan-modal">
         <a href="gestor_plano.php" class="app-modal__backdrop" aria-label="Fechar edição da entrada"></a>
 
@@ -267,6 +282,7 @@ render_app_page_start(
             </div>
 
             <form method="post" class="app-form app-form--grid profile-form" novalidate>
+                <!-- Token CSRF e identificação da entrada a atualizar. -->
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="update_plan">
                 <input type="hidden" name="id" value="<?= (int) $editingEntry['id'] ?>">
@@ -316,6 +332,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <?php if ($deleteCandidate): ?>
+    <!-- Modal de confirmação para remoção de uma entrada do plano. -->
     <div class="app-modal is-open" id="delete-plan-modal">
         <a href="gestor_plano.php" class="app-modal__backdrop" aria-label="Fechar confirmação de remoção"></a>
 
@@ -346,6 +363,7 @@ render_app_page_start(
 
 <?php if ($editingEntry || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -356,4 +374,5 @@ render_app_page_start(
     </script>
 <?php endif; ?>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

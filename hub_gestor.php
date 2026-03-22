@@ -1,8 +1,12 @@
 <?php
+// Hub principal do gestor, com visão agregada e atalhos para as áreas de gestão.
+
 require_once 'app_ui.php';
 
+// Garante que apenas gestores autenticados podem aceder a esta área.
 require_gestor();
 
+// Navegação base desta secção do portal do gestor.
 $navItems = [
     app_nav_item('hub_gestor.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -13,6 +17,7 @@ $navItems = [
     app_nav_item('gestor_fichas.php', 'Fichas', 'enrollment'),
 ];
 
+// Métricas resumidas para acompanhamento rápido do estado do sistema.
 $cards = [
     [
         'label' => 'Utilizadores',
@@ -41,6 +46,7 @@ $cards = [
     ],
 ];
 
+// Renderiza o cabeçalho comum do hub do gestor.
 render_app_page_start(
     'Gc',
     'Bem-vindo ao Hub',
@@ -52,6 +58,7 @@ render_app_page_start(
 render_metric_cards($cards);
 ?>
 <section class="hub-grid">
+    <!-- Atalhos principais para as diferentes áreas de administração. -->
     <article class="app-card hub-card">
         <div class="hub-card__body">
             <h2>Utilizadores e cargos</h2>
@@ -99,4 +106,5 @@ render_metric_cards($cards);
     </article>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

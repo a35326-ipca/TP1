@@ -1,3 +1,4 @@
+/* Contentor fixo onde os avisos temporários são empilhados no ecrã. */
 .toast-stack {
     position: fixed;
     right: 22px;
@@ -10,6 +11,7 @@
     pointer-events: none;
 }
 
+/* Estilo base de cada toast apresentado ao utilizador. */
 .toast {
     min-width: min(360px, calc(100vw - 32px));
     max-width: 420px;
@@ -26,6 +28,7 @@
     will-change: transform, opacity;
 }
 
+/* Variações visuais por tipo de mensagem. */
 .toast.success {
     background: linear-gradient(135deg, #119c3f 0%, #22c55e 52%, #34d399 100%);
     border-color: transparent;
@@ -36,6 +39,7 @@
     border-color: transparent;
 }
 
+/* Estados de animação usados na entrada e saída dos avisos. */
 .toast.is-entering {
     opacity: 0;
     transform: translate3d(30px, 0, 0);
@@ -46,6 +50,7 @@
     transform: translate3d(0, -18px, 0);
 }
 
+/* Ajustes responsivos para ecrãs mais estreitos. */
 @media (max-width: 760px) {
     .toast-stack {
         right: 14px;

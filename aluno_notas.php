@@ -1,9 +1,13 @@
 <?php
+// Página do aluno para consulta das classificações finais já registadas.
+
 require_once 'app_ui.php';
 
+// Garante que apenas alunos autenticados com acesso desbloqueado entram nesta área.
 require_aluno();
 require_student_access_unlocked($pdo);
 
+// Navegação base desta secção do portal do aluno.
 $navItems = [
     app_nav_item('hub_aluno.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -12,8 +16,10 @@ $navItems = [
     app_nav_item('aluno_notas.php', 'Notas', 'grades'),
 ];
 
+// Substitui a navegação inicial pela versão dinâmica que respeita o estado atual do aluno.
 $navItems = build_student_nav_items($pdo, (int) current_user()['id']);
 
+// Obtém as pautas associadas ao aluno, limitadas às UCs de cursos em que existe matrícula aprovada.
 $grades = db_fetch_all(
     $pdo,
     'SELECT
@@ -49,11 +55,13 @@ $grades = db_fetch_all(
     [current_user()['id']]
 );
 
+// Isola apenas os registos onde a nota final já foi publicada.
 $publishedGrades = array_values(array_filter(
     $grades,
     static fn (array $grade): bool => $grade['final_grade'] !== null
 ));
 
+// Renderiza o cabeçalho comum da página e o enquadramento visual da área.
 render_app_page_start(
     'Gc',
     'Bem-vindo às Notas',
@@ -62,6 +70,7 @@ render_app_page_start(
     'aluno_notas.php'
 );
 
+// Apresenta um resumo rápido das classificações já lançadas e dos registos encontrados.
 render_metric_cards([
     [
         'label' => 'UCs com nota',
@@ -76,6 +85,7 @@ render_metric_cards([
 ]);
 ?>
 <section class="app-panel">
+    <!-- Bloco principal de consulta das notas finais do aluno. -->
     <div class="app-panel__header">
         <div>
             <h2>Notas finais</h2>
@@ -103,10 +113,12 @@ render_metric_cards([
             </thead>
             <tbody>
                 <?php if ($grades === []): ?>
+                    <!-- Estado vazio quando ainda não existem classificações disponíveis. -->
                     <tr>
                         <td colspan="5"><p class="empty-text">Ainda não existem notas disponíveis para consulta.</p></td>
                     </tr>
                 <?php else: ?>
+                    <!-- Lista de classificações encontradas para o aluno autenticado. -->
                     <?php foreach ($grades as $grade): ?>
                         <tr>
                             <td class="app-table__plan-course-col"><div class="app-text-flow--scroll"><?= h($grade['course_name'] ?? '-') ?></div></td>
@@ -122,4 +134,5 @@ render_metric_cards([
     </div>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

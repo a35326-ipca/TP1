@@ -1,8 +1,12 @@
 <?php
+// Página do funcionário para criação, filtragem e consulta de pautas.
+
 require_once 'app_ui.php';
 
+// Garante que apenas funcionários autenticados podem aceder a esta área.
 require_funcionario();
 
+// Navegação base desta área do funcionário.
 $navItems = [
     app_nav_item('hub_funcionario.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -10,10 +14,12 @@ $navItems = [
     app_nav_item('funcionario_pautas.php', 'Pautas', 'grades'),
 ];
 
+// Processa a criação de novas pautas.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('funcionario_pautas.php');
 
     if (($_POST['action'] ?? '') === 'create_sheet') {
+        // Recolhe os dados necessários para criar a pauta.
         $unitId = (int) ($_POST['unit_id'] ?? 0);
         $academicYear = trim((string) ($_POST['academic_year'] ?? ''));
         $season = trim((string) ($_POST['season'] ?? ''));
@@ -23,11 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('funcionario_pautas.php');
         }
 
+        // Evita duplicados para a mesma UC, ano letivo e época.
         if (db_fetch_one($pdo, 'SELECT id FROM grade_sheets WHERE unit_id = ? AND academic_year = ? AND season = ? LIMIT 1', [$unitId, $academicYear, $season])) {
             set_flash('error', 'Já existe uma pauta para essa UC, ano letivo e época.');
             redirect_to('funcionario_pautas.php');
         }
 
+        // Cria a pauta e associa automaticamente os alunos elegíveis.
         db_execute(
             $pdo,
             'INSERT INTO grade_sheets (unit_id, academic_year, season, created_by) VALUES (?, ?, ?, ?)',
@@ -58,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Carrega as UCs disponíveis e prepara os filtros de pesquisa.
 $units = db_fetch_all($pdo, 'SELECT id, name FROM units ORDER BY name');
 $filterUnitId = (int) ($_GET['filter_unit_id'] ?? 0);
 $filterSeason = trim((string) ($_GET['filter_season'] ?? ''));
@@ -66,6 +75,7 @@ $hasActiveFilters = $filterUnitId > 0 || $filterSeason !== '' || $filterAcademic
 $sheetWhere = [];
 $sheetParams = [];
 
+// Constrói dinamicamente as condições SQL com base nos filtros ativos.
 if ($filterUnitId > 0) {
     $sheetWhere[] = 'gs.unit_id = ?';
     $sheetParams[] = $filterUnitId;
@@ -82,6 +92,8 @@ if ($filterAcademicYear !== '') {
 }
 
 $sheetWhereSql = $sheetWhere ? ('WHERE ' . implode(' AND ', $sheetWhere)) : '';
+
+// Obtém a lista final de pautas para apresentação em tabela.
 $sheets = db_fetch_all(
     $pdo,
     'SELECT gs.id, gs.academic_year, gs.season, gs.created_at, u.name AS unit_name, creator.name AS created_by_name,
@@ -94,6 +106,7 @@ $sheets = db_fetch_all(
     $sheetParams
 );
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo às Pautas de Avaliação',
@@ -103,6 +116,7 @@ render_app_page_start(
 );
 ?>
 <section class="app-panel profile-panel">
+    <!-- Formulário para criação manual de uma nova pauta. -->
     <div class="app-panel__header">
         <div>
             <h2>Criar pauta</h2>
@@ -111,6 +125,7 @@ render_app_page_start(
     </div>
 
     <form method="post" class="app-form app-form--grid profile-form pautas-form" novalidate>
+        <!-- Token CSRF e indicação da ação de criação. -->
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="create_sheet">
 
@@ -144,6 +159,7 @@ render_app_page_start(
 </section>
 
 <section class="app-panel profile-panel">
+    <!-- Área de filtragem e consulta do histórico de pautas criadas. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de pautas</h2>
@@ -202,10 +218,12 @@ render_app_page_start(
             </thead>
             <tbody>
                 <?php if ($sheets === [] && $hasActiveFilters): ?>
+                    <!-- Estado vazio quando não existem resultados para os filtros ativos. -->
                     <tr>
                         <td colspan="6"><p class="empty-text">Não existem pautas para os filtros selecionados.</p></td>
                     </tr>
                 <?php elseif ($sheets !== []): ?>
+                    <!-- Lista de pautas encontradas para consulta e acesso ao detalhe. -->
                     <?php foreach ($sheets as $sheet): ?>
                         <tr>
                             <td class="app-table__course-name-col"><?= h($sheet['unit_name']) ?></td>
@@ -230,4 +248,5 @@ render_app_page_start(
     </div>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();

@@ -1,8 +1,12 @@
-﻿<?php
+<?php
+// Página do funcionário para análise, decisão e eliminação de pedidos de matrícula.
+
 require_once 'app_ui.php';
 
+// Garante que apenas funcionários autenticados podem aceder a esta área.
 require_funcionario();
 
+// Navegação base desta área do funcionário.
 $navItems = [
     app_nav_item('hub_funcionario.php', 'Hub', 'home'),
     app_nav_item('perfil.php', 'Perfil', 'account'),
@@ -10,6 +14,7 @@ $navItems = [
     app_nav_item('funcionario_pautas.php', 'Pautas', 'grades'),
 ];
 
+// Renderiza o modal de revisão detalhada de um pedido específico.
 function render_request_review_modal(array $reviewingRequest, array $decisionHistory, int $decisionHistoryCount, string $selectedDecisionStatus, string $decisionNotesValue): void
 {
     ?>
@@ -59,6 +64,7 @@ function render_request_review_modal(array $reviewingRequest, array $decisionHis
                 <article class="app-card review-profile-card review-profile-card--decision">
                     <h2>Decisão pedagógica</h2>
                     <form method="post" class="app-form review-profile-form" novalidate>
+                        <!-- Token CSRF e identificação do pedido em revisão. -->
                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                         <input type="hidden" name="action" value="decide_request">
                         <input type="hidden" name="id" value="<?= (int) $reviewingRequest['id'] ?>">
@@ -109,10 +115,12 @@ function render_request_review_modal(array $reviewingRequest, array $decisionHis
     <?php
 }
 
+// Processa a gravação da decisão sobre um pedido de matrícula.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf('funcionario_pedidos.php');
 
     if (($_POST['action'] ?? '') === 'decide_request') {
+        // Recolhe os dados do formulário de decisão.
         $id = (int) ($_POST['id'] ?? 0);
         $status = $_POST['status'] ?? '';
         $decisionNotes = trim((string) ($_POST['decision_notes'] ?? ''));
@@ -130,11 +138,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('funcionario_pedidos.php');
         }
 
+        // Só permite trabalhar com pedidos ainda geríveis nesta interface.
         if (!in_array($requestToReview['status'] ?? '', ['pendente', 'rejeitado', 'aprovado'], true)) {
             set_flash('error', 'Só podes abrir pedidos pendentes, rejeitados ou aprovados.');
             redirect_to('funcionario_pedidos.php');
         }
 
+        // Valida a decisão escolhida antes de guardar.
         if (!in_array($status, ['aprovado', 'rejeitado'], true)) {
             set_flash('error', 'Seleciona uma decisão válida.');
             set_old_input([
@@ -144,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('funcionario_pedidos.php?review=' . $id);
         }
 
+        // Evita gravações redundantes quando não houve qualquer alteração.
         if (
             in_array($requestToReview['status'] ?? '', ['rejeitado', 'aprovado'], true)
             && $status === ($requestToReview['status'] ?? '')
@@ -157,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('funcionario_pedidos.php?review=' . $id);
         }
 
+        // Regista a decisão no histórico de auditoria.
         db_execute(
             $pdo,
             'INSERT INTO enrollment_request_decisions (
@@ -177,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         );
 
+        // Atualiza o estado atual do pedido.
         db_execute(
             $pdo,
             'UPDATE enrollment_requests
@@ -190,6 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Limpa automaticamente pedidos rejeitados com mais de 10 dias.
 db_execute(
     $pdo,
     "DELETE FROM enrollment_requests
@@ -198,6 +212,7 @@ db_execute(
        AND decided_at <= DATE_SUB(NOW(), INTERVAL 10 DAY)"
 );
 
+// Processa a eliminação manual de pedidos rejeitados.
 if (isset($_GET['delete'])) {
     verify_csrf_value($_GET['csrf_token'] ?? null, 'funcionario_pedidos.php');
 
@@ -225,6 +240,7 @@ if (isset($_GET['delete'])) {
     redirect_to('funcionario_pedidos.php');
 }
 
+// Resolve qual o pedido a abrir em modal de revisão e qual o candidato a eliminação.
 $modalRequestId = isset($_GET['modal'], $_GET['id']) && $_GET['modal'] === 'review'
     ? (int) $_GET['id']
     : null;
@@ -233,6 +249,7 @@ $deleteCandidateId = isset($_GET['confirm_delete']) ? (int) $_GET['confirm_delet
 $reviewRequestId = isset($_GET['review']) ? (int) $_GET['review'] : null;
 $activeReviewRequestId = $modalRequestId ?? $reviewRequestId;
 
+// Carrega o pedido em revisão com os dados necessários para o modal.
 $reviewingRequest = $activeReviewRequestId
     ? db_fetch_one(
         $pdo,
@@ -253,6 +270,7 @@ if ($reviewingRequest && !in_array(($reviewingRequest['status'] ?? ''), ['penden
     redirect_to('funcionario_pedidos.php');
 }
 
+// Carrega o histórico resumido de decisões do pedido em revisão.
 $decisionHistoryCount = $reviewingRequest
     ? (int) db_fetch_value(
         $pdo,
@@ -276,6 +294,7 @@ $decisionHistory = $reviewingRequest
     )
     : [];
 
+// Carrega o pedido que poderá ser apagado após confirmação.
 $deleteCandidate = $deleteCandidateId
     ? db_fetch_one(
         $pdo,
@@ -303,6 +322,7 @@ if ($deleteCandidate && ($deleteCandidate['status'] ?? '') !== 'rejeitado') {
     redirect_to('funcionario_pedidos.php');
 }
 
+// Lista principal de pedidos apresentada na tabela.
 $requests = db_fetch_all(
     $pdo,
     'SELECT er.id, er.status, er.student_notes, er.decision_notes, er.created_at, er.decided_at,
@@ -314,15 +334,18 @@ $requests = db_fetch_all(
      ORDER BY FIELD(er.status, \'pendente\', \'rejeitado\', \'aprovado\'), er.created_at DESC'
 );
 
+// Recupera os valores temporários do formulário do modal, se existirem.
 $oldInput = get_old_input();
 $selectedDecisionStatus = $oldInput['status'] ?? (($reviewingRequest && in_array(($reviewingRequest['status'] ?? ''), ['rejeitado', 'aprovado'], true)) ? $reviewingRequest['status'] : 'aprovado');
 $decisionNotesValue = $oldInput['decision_notes'] ?? ($reviewingRequest['decision_notes'] ?? '');
 
+// Quando o modal é pedido por fetch, devolve apenas o fragmento HTML necessário.
 if ($modalRequestId && $reviewingRequest) {
     render_request_review_modal($reviewingRequest, $decisionHistory, $decisionHistoryCount, $selectedDecisionStatus, $decisionNotesValue);
     exit;
 }
 
+// Renderiza o cabeçalho comum da página.
 render_app_page_start(
     'Gc',
     'Bem-vindo à Gestão de Pedidos de Matrícula',
@@ -366,6 +389,7 @@ render_app_page_start(
 
 <?php if ($reviewingRequest || $deleteCandidate): ?>
     <script>
+        // Garante o estado visual de modal aberto e fecha o modal com Escape.
         document.body.classList.add('app-modal-open');
 
         document.addEventListener('keydown', function (event) {
@@ -377,6 +401,7 @@ render_app_page_start(
 <?php endif; ?>
 
 <section class="app-panel">
+    <!-- Tabela principal de gestão dos pedidos de matrícula. -->
     <div class="app-panel__header">
         <div>
             <h2>Gestão de matrículas registadas</h2>
@@ -437,5 +462,5 @@ render_app_page_start(
     </div>
 </section>
 <?php
+// Fecha a estrutura visual comum aberta no início da página.
 render_app_page_end();
-

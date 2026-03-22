@@ -1,3 +1,4 @@
+/* Variáveis globais de cor, superfícies e sombras da interface. */
 :root {
     --app-text: #172217;
     --app-muted: #617163;
@@ -15,6 +16,7 @@
     --app-dock-shadow: 0 28px 60px rgba(15, 23, 42, 0.16);
 }
 
+/* Regras base comuns a toda a aplicação. */
 * {
     box-sizing: border-box;
 }
@@ -33,11 +35,13 @@
     overflow: hidden;
 }
 
+/* Estrutura principal da aplicação autenticada. */
 .app-shell {
     min-height: 100vh;
     padding: 28px 28px 28px 126px;
 }
 
+/* Navegação lateral ou inferior da aplicação, conforme o tamanho do ecrã. */
 .app-dock {
     position: fixed;
     top: 50%;
@@ -155,6 +159,7 @@
     box-shadow: 0 6px 14px rgba(255, 45, 32, 0.16);
 }
 
+/* Cabeçalho global e ações principais de cada página. */
 .app-main {
     width: min(1200px, 100%);
     margin: 0 auto;
@@ -218,6 +223,7 @@
     gap: 20px;
 }
 
+/* Botões e ligações com aspeto de ação. */
 .app-button,
 .app-link {
     display: inline-flex;
@@ -276,6 +282,7 @@
     padding: 0;
 }
 
+/* Cartões, métricas, painéis e blocos do hub. */
 .metric-grid,
 .card-grid {
     display: grid;
@@ -462,6 +469,7 @@
     padding: 24px;
 }
 
+/* Cabeçalho interno dos painéis de conteúdo. */
 .app-panel__header {
     display: flex;
     justify-content: space-between;
@@ -528,6 +536,7 @@
     margin-top: 4px;
 }
 
+/* Modais reutilizáveis da interface. */
 .app-modal {
     position: fixed;
     inset: 0;
@@ -627,6 +636,7 @@
 }
 
 
+/* Formulários e campos de introdução de dados. */
 .app-form {
     display: grid;
     gap: 14px;
@@ -716,6 +726,7 @@
     flex-wrap: wrap;
 }
 
+/* Tabelas administrativas e tabelas de consulta do aluno. */
 .app-table-wrap {
     margin-top: 0;
     overflow-x: auto;
@@ -1176,6 +1187,7 @@
     scrollbar-width: thin;
 }
 
+/* Utilitários de leitura, separadores e pré-visualização de imagens. */
 .app-text-flow {
     min-width: 0;
     max-width: 100%;
@@ -1224,6 +1236,7 @@
     background: #f7faf7;
 }
 
+/* Componentes de revisão, resumo da ficha e histórico de decisões. */
 .review-profile-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1478,6 +1491,7 @@
     max-height: 7rem;
 }
 
+/* Lightbox para visualização ampliada de fotografias. */
 .app-photo-lightbox {
     position: fixed;
     inset: 0;
@@ -1532,6 +1546,7 @@
     background: #f8fbf8;
 }
 
+/* Ajustes responsivos para tablets e larguras intermédias. */
 @media (max-width: 980px) {
     .hub-grid {
         grid-template-columns: 1fr;
@@ -1587,6 +1602,7 @@
     }
 }
 
+/* Ajustes responsivos para telemóveis e ecrãs mais estreitos. */
 @media (max-width: 760px) {
     .app-shell {
         padding: 16px 16px 108px;
@@ -1715,6 +1731,7 @@
     }
 }
 
+/* Ajustes finais para ecrãs muito pequenos. */
 @media (max-width: 560px) {
     .app-shell {
         padding: 12px 12px 104px;
