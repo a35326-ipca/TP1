@@ -201,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('gestor_fichas.php');
     }
 
-    // Remove uma ficha da lista ativa e envia-a para retenção temporária.
+    // Remove uma ficha da lista ativa, com retenção temporária apenas para fichas rejeitadas.
     if ($action === 'delete_profile') {
         $id = (int) ($_POST['id'] ?? 0);
         $profileToDelete = db_fetch_one($pdo, 'SELECT * FROM student_profiles WHERE id = ? LIMIT 1', [$id]);
@@ -216,38 +216,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('gestor_fichas.php');
         }
 
+        $shouldRetainDeletedProfile = ($profileToDelete['status'] ?? '') === 'rejeitada';
+
         $pdo->beginTransaction();
 
         try {
-            // Guarda uma cópia da ficha eliminada para purge posterior.
-            db_execute(
-                $pdo,
-                'INSERT INTO deleted_student_profiles (
-                    original_profile_id, user_id, course_id, full_name, birth_date, contact_email, phone, address, photo_path,
-                    notes, status, review_notes, reviewed_by, reviewed_at, submitted_at,
-                    original_created_at, original_updated_at, deleted_by, purge_after
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 DAY))',
-                [
-                    $profileToDelete['id'],
-                    $profileToDelete['user_id'],
-                    $profileToDelete['course_id'],
-                    $profileToDelete['full_name'],
-                    $profileToDelete['birth_date'],
-                    $profileToDelete['contact_email'],
-                    $profileToDelete['phone'],
-                    $profileToDelete['address'],
-                    $profileToDelete['photo_path'],
-                    $profileToDelete['notes'],
-                    $profileToDelete['status'],
-                    $profileToDelete['review_notes'],
-                    $profileToDelete['reviewed_by'],
-                    $profileToDelete['reviewed_at'],
-                    $profileToDelete['submitted_at'],
-                    $profileToDelete['created_at'],
-                    $profileToDelete['updated_at'],
-                    current_user()['id'],
-                ]
-            );
+            if ($shouldRetainDeletedProfile) {
+                db_execute(
+                    $pdo,
+                    'INSERT INTO deleted_student_profiles (
+                        original_profile_id, user_id, course_id, full_name, birth_date, contact_email, phone, address, photo_path,
+                        notes, status, review_notes, reviewed_by, reviewed_at, submitted_at,
+                        original_created_at, original_updated_at, deleted_by, purge_after
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 DAY))',
+                    [
+                        $profileToDelete['id'],
+                        $profileToDelete['user_id'],
+                        $profileToDelete['course_id'],
+                        $profileToDelete['full_name'],
+                        $profileToDelete['birth_date'],
+                        $profileToDelete['contact_email'],
+                        $profileToDelete['phone'],
+                        $profileToDelete['address'],
+                        $profileToDelete['photo_path'],
+                        $profileToDelete['notes'],
+                        $profileToDelete['status'],
+                        $profileToDelete['review_notes'],
+                        $profileToDelete['reviewed_by'],
+                        $profileToDelete['reviewed_at'],
+                        $profileToDelete['submitted_at'],
+                        $profileToDelete['created_at'],
+                        $profileToDelete['updated_at'],
+                        current_user()['id'],
+                    ]
+                );
+            }
 
             db_execute($pdo, 'DELETE FROM student_profiles WHERE id = ?', [$id]);
             $pdo->commit();
@@ -260,7 +263,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('gestor_fichas.php');
         }
 
-        set_flash('success', 'Ficha removida da lista ativa. A eliminação permanente acontece dentro de 10 dias.');
+        if (!$shouldRetainDeletedProfile) {
+            delete_uploaded_file($profileToDelete['photo_path'] ?? null);
+        }
+
+        set_flash(
+            'success',
+            $shouldRetainDeletedProfile
+                ? 'Ficha removida da lista ativa. Por estar rejeitada, ficará em retenção temporária durante 10 dias antes da eliminação definitiva.'
+                : 'Ficha eliminada de forma imediata com sucesso.'
+        );
         redirect_to('gestor_fichas.php');
     }
 }
@@ -480,8 +492,13 @@ render_app_page_start(
 
             <div class="app-modal__content">
                 <p class="helper-text">Curso: <strong><?= h($deleteCandidate['course_name']) ?></strong></p>
+                <p class="helper-text">Estado: <strong><?= h($deleteCandidate['status']) ?></strong></p>
                 <p class="helper-text">Submetida: <strong><?= $deleteCandidate['submitted_at'] ? h(date('Y-m-d', strtotime((string) $deleteCandidate['submitted_at']))) : '-' ?></strong></p>
-                <p class="helper-text">A eliminação permanente acontece automaticamente dentro de <strong>10 dias</strong>.</p>
+                <?php if (($deleteCandidate['status'] ?? '') === 'rejeitada'): ?>
+                    <p class="helper-text">Por se tratar de uma ficha rejeitada, a eliminação definitiva será concluída automaticamente após <strong>10 dias</strong>.</p>
+                <?php else: ?>
+                    <p class="helper-text">Esta ação remove a ficha de forma imediata.</p>
+                <?php endif; ?>
             </div>
 
             <form method="post" class="app-form" novalidate>
