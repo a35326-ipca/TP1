@@ -98,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Evita gravações desnecessárias quando não houve alterações efetivas.
         $hasChanges = false;
+
         // Atualiza cada registo da pauta com a nova nota final.
         foreach ($validatedGrades as $rowId => $finalGrade) {
             if ($currentGradesById[$rowId] !== $finalGrade) {
@@ -170,7 +171,7 @@ $eligibleStudents = db_fetch_all(
 render_app_page_start(
     'Gc',
     'Detalhes da Pauta',
-    'Nesta área pode visualizar os alunos elegíveis associados à pauta selecionada e lançar as respetivas notas finais. Permite também editar e guardar as classificações de forma simples, garantindo um registo organizado e atualizado do processo de avaliação.',
+    'Nesta área pode consultar os alunos elegíveis associados à pauta selecionada e lançar as respetivas notas finais. Também pode editar e guardar as classificações de forma simples, mantendo o processo de avaliação organizado e atualizado.',
     $navItems,
     'funcionario_pautas.php',
     [
@@ -205,25 +206,50 @@ render_app_page_start(
         <div class="app-panel__header">
             <div>
                 <h2>Adicionar alunos elegíveis</h2>
-                <p>Seleciona manualmente alunos aprovados ainda não incluídos nesta pauta.</p>
+                <p>Selecione os alunos aprovados que pretende incluir nesta pauta.</p>
             </div>
         </div>
 
-        <form method="post" class="app-form" novalidate>
+        <form method="post" class="app-form profile-form pautas-detail-form" novalidate>
             <!-- Token CSRF e indicação da ação a executar. -->
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="action" value="add_students">
-            <div class="card-grid">
-                <?php foreach ($eligibleStudents as $student): ?>
-                    <label class="app-card">
-                        <input type="checkbox" name="student_ids[]" value="<?= (int) $student['id'] ?>">
-                        <h2><?= h($student['name']) ?></h2>
-                        <p><?= h($student['email']) ?></p>
-                    </label>
-                <?php endforeach; ?>
+            <div class="app-table-wrap">
+                <table class="app-table app-table--eligible-students">
+                    <colgroup>
+                        <col class="app-table__select-col">
+                        <col class="app-table__name-col">
+                        <col class="app-table__email-col">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="app-table__select-col">Incluir</th>
+                            <th class="app-table__name-col">Aluno</th>
+                            <th class="app-table__email-col">E-mail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($eligibleStudents as $student): ?>
+                            <tr>
+                                <td class="app-table__select-col">
+                                    <label class="pautas-detail-check">
+                                        <input type="checkbox" name="student_ids[]" value="<?= (int) $student['id'] ?>">
+                                        <span>Selecionar</span>
+                                    </label>
+                                </td>
+                                <td class="app-table__name-col">
+                                    <div class="app-text-flow--scroll"><?= h($student['name']) ?></div>
+                                </td>
+                                <td class="app-table__email-col">
+                                    <div class="app-text-flow--scroll"><?= h($student['email']) ?></div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="app-form__actions">
-                <button type="submit" class="app-button app-button--primary">Adicionar selecionados</button>
+            <div class="app-form__actions profile-form__actions pautas-detail-form__actions">
+                <button type="submit" class="app-button app-button--primary">Adicionar alunos selecionados</button>
             </div>
         </form>
     </section>

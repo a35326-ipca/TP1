@@ -189,14 +189,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]
         );
 
-        // Atualiza o estado atual do pedido.
-        db_execute(
+        // Atualiza o estado atual do pedido e remove as ligações às UCs se a matrícula for rejeitada.
+        $requestContext = db_fetch_one(
             $pdo,
-            'UPDATE enrollment_requests
-             SET status = ?, decision_notes = ?, decided_by = ?, decided_at = NOW()
-             WHERE id = ?',
-            [$status, $decisionNotes !== '' ? $decisionNotes : null, current_user()['id'], $id]
+            'SELECT user_id, course_id
+             FROM enrollment_requests
+             WHERE id = ? LIMIT 1',
+            [$id]
         );
+
+        $pdo->beginTransaction();
+
+        try {
+            db_execute(
+                $pdo,
+                'UPDATE enrollment_requests
+                 SET status = ?, decision_notes = ?, decided_by = ?, decided_at = NOW()
+                 WHERE id = ?',
+                [$status, $decisionNotes !== '' ? $decisionNotes : null, current_user()['id'], $id]
+            );
+
+            if ($status === 'rejeitado' && $requestContext) {
+                db_execute(
+                    $pdo,
+                    'DELETE gss
+                     FROM grade_sheet_students gss
+                     INNER JOIN grade_sheets gs ON gs.id = gss.sheet_id
+                     INNER JOIN study_plan sp ON sp.unit_id = gs.unit_id
+                     WHERE gss.student_user_id = ?
+                       AND sp.course_id = ?',
+                    [(int) $requestContext['user_id'], (int) $requestContext['course_id']]
+                );
+            }
+
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            $pdo->rollBack();
+            throw $exception;
+        }
 
         set_flash('success', 'Pedido atualizado com sucesso.');
         redirect_to('funcionario_pedidos.php');

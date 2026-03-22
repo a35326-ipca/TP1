@@ -536,6 +536,22 @@
     margin-top: 4px;
 }
 
+.pautas-detail-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 600;
+    color: var(--app-green-dark);
+    cursor: pointer;
+}
+
+.pautas-detail-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
 /* Modais reutilizáveis da interface. */
 .app-modal {
     position: fixed;
@@ -760,6 +776,10 @@
     width: 6%;
 }
 
+.app-table__select-col {
+    width: 14%;
+}
+
 .app-table__course-name-col {
     width: 43%;
 }
@@ -818,6 +838,12 @@
 
 .app-table__plan-actions-col {
     width: 8%;
+}
+
+.app-table--eligible-students th.app-table__select-col,
+.app-table--eligible-students td.app-table__select-col {
+    text-align: center;
+    white-space: nowrap;
 }
 
 .app-table th,
